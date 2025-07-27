@@ -208,10 +208,33 @@ parser.add_argument("--stage",
                     help='Populate the staging directory and do nothing else.'
                     )
 
+# this is a hidden option that will not be shown for --help.
+# If this option is specified, the script ignores everything
+# else and simply exits with success immediately. 
+# The purpose is to avoid the script running; we need this in
+# the following case. When building images/packages/launching
+# an interactive container, we try to build a docker image
+# in case it is outdated. If it is not outdated, that completes
+# immediately. However, one of the RUN instructions in the Dockerfile
+# invokes this very script, which is necessary for automated builds
+# where everything start to finish is done inside the docker image.
+# But when we do a 'dev' build with a minimal docker image,
+# we still want to 'build' the image to keep it up to date.
+# IN that case, we cannot have the script be called and do an entire
+# sdk setup and build! Hence, we specify this flag to make it
+# exit immediately.
+parser.add_argument("--skip-all",
+                    action='store_true',
+                    dest="skip_all",
+                    help=argparse.SUPPRESS
+                    )
+
 print(f" ** Invocation: {sys.argv}", flush=True)
 os.chdir(utils.get_project_root())
 args = parser.parse_args()
 sanitize_cli(args)
+
+if (args.skip_all): exit(0)
 
 # guards for certain actions and prints
 build_mode  = not (args.populate_staging or args.container or args.list_targets or args.validate_jsons)
@@ -292,16 +315,39 @@ else:
     utils.log(f" ** mounts: {sdk.get_mounts(validate=False)}")
     utils.log(f" ** confvars: {confvars}")
 
-    if args.only_packages:
+# NOTE: when we start a container or build either a whole
+# firmware or a subset of packages, we always:
+# - populate the staging dir
+# - try to build the docker image (nop if up to date)
+# Otherwise we risk building from outdated configuration,
+# causing confusion. Also if we add one small thing to the Dockfile
+# it would not make sense to have to rebuild the entire sdk if
+# the change is irrelevant. However, we only do this if
+# --devbuild is used. The reason is for automated builds the Docker
+# image is much heavier since it contains *everything* so building
+# it could take a significant amount of time. Therefore we only
+# constantly try to build the image for dev-builds, where the Docker
+# image is very light and all artifacts are actually on the host
+# under the builder directory.
+    if args.populate_staging:
+        sdk.populate_staging_dir()
+    elif args.container:
+        sdk.populate_staging_dir()
+        if args.devbuild:
+            sdk.build_container_image(short_circuit=True)
+        sdk.get_interactive_container(ephemeral=args.ephemeral)
+    elif args.only_packages:
+        sdk.populate_staging_dir()
+        if args.devbuild:
+            sdk.build_container_image(short_circuit=True)
         sdk.build_single_packages(args.only_packages)
         sdk.retrieve_build_artifacts(paths.get('container', 'pkg_outdir'))
     elif args.only_firmware:
+        sdk.populate_staging_dir()
+        if args.devbuild:
+            sdk.build_container_image(short_circuit=True)
         sdk.build_only_firmware()
         sdk.retrieve_build_artifacts(paths.get('container', 'outdir'))
-    elif args.container:
-        sdk.get_interactive_container(ephemeral=args.ephemeral)
-    elif args.populate_staging:
-        sdk.populate_staging_dir()
     else: # full sdk build
         tasks=steps["steps"]
         context = paths.get_current_context()
