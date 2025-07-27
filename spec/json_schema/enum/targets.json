@@ -5,6 +5,7 @@
     "type": "string",
     "enum": [
         "rpi4b",
+        "rpi4b_yocto",
         "x86_glibc"
     ]
 }

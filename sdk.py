@@ -407,8 +407,16 @@ class Concrete_sdk(Sdk):
 class OpenWrt_sdk(Concrete_sdk):
     def __init__(self, spec, paths, configs):
         super().__init__(spec, paths, configs)
+
+class yocto_sdk(Concrete_sdk):
+    def __init__(self, spec, paths, configs):
+        super().__init__(spec, paths, configs)
    
 class rpi4b_sdk(OpenWrt_sdk):
+    def __init__(self, spec, paths, configs):
+        super().__init__(spec, paths, configs)
+
+class rpi4b_yocto_sdk(yocto_sdk):
     def __init__(self, spec, paths, configs):
         super().__init__(spec, paths, configs)
 

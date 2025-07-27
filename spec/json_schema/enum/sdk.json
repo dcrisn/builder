@@ -4,7 +4,8 @@
     "description": "Enumeration of supported SDKs",
     "type": "string",
     "enum": [
-        "OpenWrt"
+        "OpenWrt",
+        "yocto"
     ]
 }
 
