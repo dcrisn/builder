@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as openwrt-sdk
+FROM ubuntu:24.04 as base
 
 # Docker environment variables
 ENV DEBIAN_FRONTEND noninteractive
@@ -66,10 +66,15 @@ RUN apt-get -y update && \
     libnet-snmp-perl \
     libjansson-dev \
     iputils-ping \
-    iproute2
+    iproute2 \
+    chrpath \
+    lz4 \
+    zstd
+
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Install front-end required packages: nodejs, npm, html-minifier etc.
-ARG NODEJS_VERSION_MAJOR=14
+ARG NODEJS_VERSION_MAJOR=22
 RUN curl -fsSL "https://deb.nodesource.com/setup_${NODEJS_VERSION_MAJOR}.x" | bash - && \
     apt-get install -y nodejs && \
     npm install --global typescript yarn
@@ -112,6 +117,7 @@ ARG SDK_DIRNAME
 ARG NUM_BUILD_CORES_CLI_FLAG
 ARG BUILD_ARTIFACTS_OUTDIR
 ARG DEV_BUILD_CLI_FLAG
+ARG SHORT_CIRCUIT_MAGIC_CLI_FLAG
 
 ENV INSIDE_CONTAINER "Y"
 ENV SDK_TOPDIR "/home/$USER/$SDK_DIRNAME"
@@ -119,6 +125,6 @@ ENV BUILD_ARTIFACTS_OUTDIR "$BUILD_ARTIFACTS_OUTDIR"
 
 RUN mkdir -p $BUILD_ARTIFACTS_OUTDIR
 
-RUN /bin/bash -c "./builder.py -t $TARGET $DEV_BUILD_CLI_FLAG $NUM_BUILD_CORES_CLI_FLAG "
+RUN /bin/bash -c "./builder.py -t $TARGET $DEV_BUILD_CLI_FLAG $NUM_BUILD_CORES_CLI_FLAG $SHORT_CIRCUIT_MAGIC_CLI_FLAG"
 
 WORKDIR $SDK_TOPDIR
