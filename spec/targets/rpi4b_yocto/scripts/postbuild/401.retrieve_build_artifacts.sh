@@ -5,7 +5,7 @@ set -e
 # Copy build artifacts on build completion
 
 # todo take this from env
-image_name="tarp-image-dev"
+image_name="${YOCTO_IMAGE_NAME:?}"
 sdk_topdir="${SDK_TOPDIR:?}"
 outdir="${BUILD_ARTIFACTS_OUTDIR:?}"
 artifacts_dir="$sdk_topdir/build/tmp/deploy/images/"

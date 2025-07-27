@@ -2,6 +2,8 @@
 
 set -e 
 
+IMAGE="${YOCTO_IMAGE_NAME:?}"
+
 # default to 1 if unspecified
 N="${NUM_BUILD_CORES:-1}"
 
@@ -9,9 +11,6 @@ topdir="${SDK_TOPDIR:?SDK_TOPDIR must be set}"
 cd "$topdir"
 
 build_config="$topdir/build/conf/local.conf"
-
-# TODO: take from the environment
-image="tarp-image-dev"
 
 echo "Patching local.conf with BB_NUMBER_THREADS=$N and PARALLEL_MAKE=-j$N"
 
@@ -33,6 +32,6 @@ fi
 
 # --------
 
-cmd="bitbake $image"
+cmd="bitbake $IMAGE"
 printf " ~ Building SDK; Command='%s'\n" "$cmd"
 $cmd

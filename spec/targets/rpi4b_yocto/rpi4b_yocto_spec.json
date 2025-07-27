@@ -8,7 +8,9 @@
     "build_artifacts_archive_name": "artifacts",
     "environment" : {
         "variables": {
-            "__DUMMYVAR__" : "dummy"
+            "NUM_BUILD_CORES" : "8",
+            "YOCTO_IMAGE_NAME": "tarp-image-dev",
+            "BUILD_CONFIG_FILE_NAME" : "rpi4b-dev.conf"
         }
     }
 }

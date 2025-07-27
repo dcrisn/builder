@@ -33,7 +33,6 @@ bitbake-layers add-layer meta-raspberrypi
 git clone -b $BRANCH git://git.yoctoproject.org/meta-virtualization
 bitbake-layers add-layer meta-virtualization
 
-
 # tarp layers
 git clone -b $BRANCH git://github.com/dcrisn/meta-tarp
 bitbake-layers add-layer meta-tarp/layers/meta-tarp-raspberrypi

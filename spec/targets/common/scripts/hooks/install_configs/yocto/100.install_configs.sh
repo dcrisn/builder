@@ -4,6 +4,7 @@ set -e
 
 configs_dir="${CONFIGS_DIR:?}"
 sdk_topdir="${SDK_TOPDIR:?}"
+config_file="${BUILD_CONFIG_FILE_NAME:-local.conf}"
 
 LOCAL_CONF_PATH="build/conf/local.conf"
 
@@ -28,4 +29,4 @@ source oe-init-build-env
 # NOTE: not fatal if not found. Presumably the config is otherwise
 # installed from somewhere else later.
 echo "Installing yocto build config ..."
-install_file "sdk_config/local.conf" "$LOCAL_CONF_PATH"
+install_file "sdk_config/$config_file" "$LOCAL_CONF_PATH"

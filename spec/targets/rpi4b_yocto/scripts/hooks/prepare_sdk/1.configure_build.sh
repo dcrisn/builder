@@ -10,8 +10,7 @@ source oe-init-build-env
 LOCAL_CONF_PATH="$SDK_TOPDIR/build/conf/local.conf"
 TARP_LAYER_ROOT="$SDK_TOPDIR/meta-tarp"
 
-# TODO take this from the environment
-config_name="rpi4b_dev.conf"
+config_name="${BUILD_CONFIG_FILE_NAME:-local.conf}"
 
 # copy the required configuration file as conf/local.conf
 # for the build.
