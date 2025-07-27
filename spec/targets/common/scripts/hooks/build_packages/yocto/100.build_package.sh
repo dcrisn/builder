@@ -32,7 +32,8 @@ pkgformats=()
 #
 
 cd "$sdk_topdir" || fail "Couldn't cd to $sdk_topdir"
-source oe-init-build-env
+source oe-init-build-env > /dev/null
+cd "$sdk_topdir"
 
 pkg_class=$(bitbake -e | grep '^PACKAGE_CLASSES=' | cut -d'"' -f2)
 if [[ "$pkg_class" == *package_ipk* ]]; then

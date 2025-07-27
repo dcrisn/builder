@@ -8,6 +8,8 @@ IMAGE="${YOCTO_IMAGE_NAME:?}"
 N="${NUM_BUILD_CORES:-1}"
 
 topdir="${SDK_TOPDIR:?SDK_TOPDIR must be set}"
+
+source "$topdir/oe-init-build-env" > /dev/null
 cd "$topdir"
 
 build_config="$topdir/build/conf/local.conf"
@@ -35,3 +37,5 @@ fi
 cmd="bitbake $IMAGE"
 printf " ~ Building SDK; Command='%s'\n" "$cmd"
 $cmd
+
+

@@ -4,8 +4,8 @@ set -e
 
 printf "Installing yocto build config ...\n"
 
+source "${SDK_TOPDIR:?}/oe-init-build-env" >/dev/null
 cd "${SDK_TOPDIR:?}"
-source oe-init-build-env
 
 LOCAL_CONF_PATH="$SDK_TOPDIR/build/conf/local.conf"
 TARP_LAYER_ROOT="$SDK_TOPDIR/meta-tarp"

@@ -8,6 +8,9 @@ config_file="${BUILD_CONFIG_FILE_NAME:-local.conf}"
 
 LOCAL_CONF_PATH="build/conf/local.conf"
 
+echo "inside script $0; env=$(printenv) ; home=$(ls -l $HOME)"
+
+
 # $1 = name of file to install (path should be relative to $configs_dir)
 # $2 = path to install to (should be relative to $sdk_topdir)
 install_file(){
@@ -23,8 +26,7 @@ install_file(){
 }
 
 # the 'source' creates the required paths if they do not exist.
-cd "${SDK_TOPDIR:?}"
-source oe-init-build-env
+source "${SDK_TOPDIR:?}/oe-init-build-env" >/dev/null
 
 # NOTE: not fatal if not found. Presumably the config is otherwise
 # installed from somewhere else later.
