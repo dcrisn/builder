@@ -111,9 +111,10 @@ class Concrete_sdk(Sdk):
         cmd  = f"git clone {self.url} --branch {self.tag} {pabs}"
 
         if self.path.exists():
-            cmd = f"git -C {pabs} checkout {self.tag}"
             if self.conf["start_clean"]:
                 shutil.rmtree(pabs)
+            else:
+                cmd = f"git -C {pabs} checkout {self.tag}"
 
         if not self.path.exists():
             self.path.mkdir(parents=True, exist_ok=True)
@@ -138,7 +139,7 @@ class Concrete_sdk(Sdk):
         configured["CONFIGS_DIR"] = paths.files
         configured["SDK_TOPDIR"] = paths.sdk_path + self.dir_name
 
-        return {**inherited, **defaults, **configured, **overrides}
+        return {**inherited, **defaults, **specifics, **configured, **overrides}
     
     def get_mounts(self, validate=True):
         mounts=[]
@@ -264,7 +265,7 @@ class Concrete_sdk(Sdk):
         #self.container = container
 
 
-    def build_container_image(self):
+    def build_container_image(self, short_circuit=False):
         nocache = True if self.conf["start_clean"] else False
         build_args = {
                 "UID"     : str(os.getuid()),
@@ -276,9 +277,12 @@ class Concrete_sdk(Sdk):
                 "QUIET_MODE_CLI_FLAG" : not self.conf["verbose"] and "--quiet" or "",
                 "NUM_BUILD_CORES_CLI_FLAG" : "--cores=" + self.conf["num_build_cores"],
                 "BUILD_ARTIFACTS_OUTDIR" : self.paths.get(context='container', label='outdir'),
-                "DEV_BUILD_CLI_FLAG" : (self.conf["sdk_build_type"] == "dev") and "-d" or ""
+                "DEV_BUILD_CLI_FLAG" : (self.conf["sdk_build_type"] == "dev") and "-d" or "",
+                "SHORT_CIRCUIT_MAGIC_CLI_FLAG": ("--skip-all" if short_circuit else "")
                 }
         print(build_args)
+
+        print(f"----- building docker image with tag: {self.container_img_tag}")
         stream = self.containers.build_image(
                 nocache,
                 self.paths.basedir,
@@ -287,6 +291,7 @@ class Concrete_sdk(Sdk):
                 )
         for line in stream:
             utils.log(line)
+        print(f"----- docker image build done")
     
 
     def populate_staging_dir(self):
