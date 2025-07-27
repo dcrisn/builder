@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+#set -e
 
 printf "Setting up yocto BB layers ...\n"
 
@@ -16,24 +16,46 @@ pull_latest(){
     git -C "$repo" pull origin
 }
 
+runscript(){
+    python3 -c "import pty; pty.spawn(['/bin/bash', '-c', '${1:?}'])"
+    #script -q -c "${1:?}"
+}
+
+rm $SDK_TOPDIR/build/bitbake.lock
+rm $SDK_TOPDIR/build/bitbake-cookerdaemon.log
+
 source "${SDK_TOPDIR:?}/oe-init-build-env" > /dev/null
 cd "$SDK_TOPDIR"
 
+
+echo "===================================="
+echo "===================================="
+echo "ENV: $(printenv)"
+echo "PWD: $(pwd)"
+echo "LS: $(ls -l)"
+echo "===================================="
+echo "===================================="
+
+
 if [[ ! -d "meta-openembedded" ]]; then
+    echo "-----------> meta-openembedded...XXXXXXXX"
     # various userspace recipes for libraries etc e.g. asio, libpcap etc.
     git clone -b $BRANCH https://git.openembedded.org/meta-openembedded
-    bitbake-layers add-layer meta-openembedded/meta-oe
-    bitbake-layers add-layer meta-openembedded/meta-python
+    echo "stracing bitbake-layers ---- "
+    runscript "bitbake-layers add-layer meta-openembedded/meta-oe"
+    echo "after strace ..."
+
+    runscript "bitbake-layers add-layer meta-openembedded/meta-python"
 
     # depends on meta-python
     # adds wireguard, etc.
-    bitbake-layers add-layer meta-openembedded/meta-networking
+    runscript "bitbake-layers add-layer meta-openembedded/meta-networking"
 
     # required by meta-virtualization e.g. lxc
-    bitbake-layers add-layer meta-openembedded/meta-filesystems
+    runscript "bitbake-layers add-layer meta-openembedded/meta-filesystems"
 
     # nginx etc
-    bitbake-layers add-layer meta-openembedded/meta-webserver
+    runscript "bitbake-layers add-layer meta-openembedded/meta-webserver"
 else
     pull_latest "meta-openembedded" "$BRANCH"
 fi
@@ -41,7 +63,7 @@ fi
 if [[ ! -d "meta-raspberrypi" ]]; then
     # raspberry-pi board support
     git clone -b $BRANCH git://git.yoctoproject.org/meta-raspberrypi
-    bitbake-layers add-layer meta-raspberrypi
+    runscript "bitbake-layers add-layer meta-raspberrypi"
 else
     pull_latest "meta-raspberrypi" "$BRANCH"
 fi
@@ -49,7 +71,7 @@ fi
 if [[ ! -d "meta-virtualization" ]];then
     # lxc support; depends on meta-filesystems.
     git clone -b $BRANCH git://git.yoctoproject.org/meta-virtualization
-    bitbake-layers add-layer meta-virtualization
+    runscript "bitbake-layers add-layer meta-virtualization"
 else
     pull_latest "meta-virtualization" "$BRANCH"
 fi
@@ -57,8 +79,16 @@ fi
 if [[ ! -d "meta-tarp" ]]; then
     # tarp layers
     git clone -b $BRANCH https://github.com/dcrisn/meta-tarp
-    bitbake-layers add-layer meta-tarp/layers/meta-tarp-raspberrypi
-    bitbake-layers add-layer meta-tarp
+    runscript "bitbake-layers add-layer meta-tarp/layers/meta-tarp-raspberrypi"
+    runscript "bitbake-layers add-layer meta-tarp"
+    echo "bitbake-layers exit code: $?"
 else
     pull_latest "meta-tarp" "$BRANCH"
 fi
+
+BBLAYERS_CONF="$SDK_TOPDIR/build/conf/bblayers.conf"
+echo "BBLAYERS=$BBLAYERS"
+echo "BBLAYERS NOW: $(cat "$BBLAYERS_CONF")"
+
+sleep 4000
+exit 1

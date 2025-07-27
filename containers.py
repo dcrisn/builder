@@ -138,7 +138,10 @@ class Docker_containers(Containers):
                 line=chunk['stream'].rstrip()
                 if line:
                     yield line
- 
+            elif 'error' in chunk:
+                error_msg = chunk['error'].strip()
+                print(f"CONTAINER IMAGE BUILD FAILURE: {error_msg}")
+                raise RuntimeError(f"Container image build failure: {error_msg}")
 
 class ImageNotFound(LookupError):
     pass

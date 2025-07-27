@@ -14,12 +14,11 @@ RUN apt-get -y update && \
     vim \
     git \
     tree \
+    strace \
     expect \
     socat \
     sshpass \
-    trickle \
     lua5.1 \
-    python2 \
     python3 \
     python3-pip \
     python3-mako \
@@ -60,7 +59,6 @@ RUN apt-get -y update && \
 	mkisofs \
 	qemu-utils \
     libelf-dev \
-	libldap-2.4-2 \
     libgnutls30 \
     liblzma-dev \
     libnet-snmp-perl \
@@ -92,24 +90,43 @@ ARG GROUP
 ARG UID
 ARG GID
 
-RUN groupadd -g $GID $GROUP
-RUN useradd -m -l -s /bin/bash -u$UID -g$GID $USER
+# ubuntu24 has default user 'ubuntu' with uid and gid 1000.
+# if UID and GID are specified and conflict with this,
+# we do *not* add them.
+RUN if getent group ${GID} > /dev/null; then \
+      echo "GID $GID already taken by group $(id -gn $GID), skipping groupadd."; \
+    else \
+      groupadd -g $GID $GROUP; \
+    fi
+
+RUN if getent passwd ${UID} > /dev/null; then \
+      echo "UID $UID already taken by user $(id -un $UID), skipping user creation."; \
+      usermod -s /bin/bash -aG $GID $(id -un $UID); \
+      mkdir -p /home/$(id -un $UID)/dockerbuild/; \
+      ln -sf /home/$(id -un $UID)/dockerbuild /home/$USER; \
+      chown $UID:$UID /home/$USER; \
+    else \
+      useradd -m -l -s /bin/bash -u$UID -g$GID $USER; \
+    fi
 
 # don't require password when running command through sudo
-RUN echo "$USER ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/10-$USER
+RUN echo "$(id -un $UID) ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/10-$USER
 
-USER $USER:$USER
+USER $UID:$GID
 
 # Copy ssh keys for ssh access to any internal servers
 RUN mkdir -p /home/$USER/.ssh
-ADD  --chown=$USER:$USER staging/files/system_config/ssh /home/$USER/.ssh/
-COPY --chown=$USER:$USER staging/files/system_config/gitconfig /home/$USER/.gitconfig
-ADD  --chown=$USER:$USER staging /home/$USER/base
+ADD  --chown=$UID:$UID staging/files/system_config/ssh /home/$USER/.ssh/
+COPY --chown=$UID:$UID staging/files/system_config/gitconfig /home/$USER/.gitconfig
+ADD  --chown=$UID:$UID staging /home/$USER/base
 
-ENV PATH="$PATH:/home/dev/.local/bin"
+ENV PATH="$PATH:/home/$USER/.local/bin"
 ENV BASE_DIR "/home/$USER/base/"
+ENV PYVENV "/home/$USER/pyvenv"
 WORKDIR $BASE_DIR
-RUN pip3 install -r depends/requirements.txt
+
+# We are already in a sandbox: the container. A venv is redundant.
+RUN pip3 install --break-system-packages -r depends/requirements.txt
 
 # Environment variables and docker build args
 ARG TARGET

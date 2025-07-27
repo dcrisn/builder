@@ -334,7 +334,8 @@ else:
     elif args.container:
         sdk.populate_staging_dir()
         if args.devbuild:
-            sdk.build_container_image(short_circuit=True)
+            pass
+            #sdk.build_container_image(short_circuit=True)
         sdk.get_interactive_container(ephemeral=args.ephemeral)
     elif args.only_packages:
         sdk.populate_staging_dir()
@@ -345,6 +346,7 @@ else:
     elif args.only_firmware:
         sdk.populate_staging_dir()
         if args.devbuild:
+            #pass
             sdk.build_container_image(short_circuit=True)
         sdk.build_only_firmware()
         sdk.retrieve_build_artifacts(paths.get('container', 'outdir'))

@@ -148,11 +148,12 @@ def run(cmd, env=None, capture=False, timeout=None):
                 timeout=timeout,
                 check=True,
                 shell=True,
-                stdout = subprocess.PIPE if capture else sys.stderr,
+                stdout = subprocess.PIPE if capture else sys.stdout,
                 stderr = subprocess.STDOUT,
                 env=env
                 )
     except subprocess.CalledProcessError as e:
+        print(f"e is {e}")
         if capture:
             output = e.stdout.strip()
             print(f' !! Command "{cmd}" failed with error code {e.returncode}: \n<<{output}>>')
