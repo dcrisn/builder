@@ -10,12 +10,16 @@ LOCAL_CONF_PATH="build/conf/local.conf"
 
 echo "inside script $0; env=$(printenv) ; home=$(ls -l $HOME)"
 
-
 # $1 = name of file to install (path should be relative to $configs_dir)
 # $2 = path to install to (should be relative to $sdk_topdir)
 install_file(){
     local src="$configs_dir/${1:?}"
     local dst="$sdk_topdir/${2:?}"
+
+    if [[ ! -d "$dst" ]]; then
+        echo "WARNING: skipping $0 hook script --> $dst does not exist."
+        return
+    fi
 
     if [[ -f $src ]]; then
         mkdir -p "$(dirname "$dst")"
@@ -24,9 +28,6 @@ install_file(){
         echo "WARNING: cannot install '$src' (not found)"
     fi
 }
-
-# the 'source' creates the required paths if they do not exist.
-source "${SDK_TOPDIR:?}/oe-init-build-env" >/dev/null
 
 # NOTE: not fatal if not found. Presumably the config is otherwise
 # installed from somewhere else later.
