@@ -32,7 +32,7 @@ pkgformats=()
 #
 
 cd "$sdk_topdir" || fail "Couldn't cd to $sdk_topdir"
-source oe-init-build-env > /dev/null
+source oe-init-build-env build> /dev/null
 cd "$sdk_topdir"
 
 pkg_class=$(bitbake -e | grep '^PACKAGE_CLASSES=' | cut -d'"' -f2)

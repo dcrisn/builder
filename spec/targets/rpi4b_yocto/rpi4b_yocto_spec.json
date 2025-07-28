@@ -10,7 +10,8 @@
         "variables": {
             "NUM_BUILD_CORES" : "8",
             "YOCTO_IMAGE_NAME": "tarp-image-dev",
-            "BUILD_CONFIG_FILE_NAME" : "rpi4b_dev.conf"
+            "BUILD_CONFIG_FILE_NAME" : "rpi4b_dev.conf",
+            "LAYER_BRANCH": "scarthgap"
         }
     }
 }

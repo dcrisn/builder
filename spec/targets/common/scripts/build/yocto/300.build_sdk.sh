@@ -9,8 +9,7 @@ N="${NUM_BUILD_CORES:-1}"
 
 topdir="${SDK_TOPDIR:?SDK_TOPDIR must be set}"
 
-#source "$topdir/oe-init-build-env" > /dev/null
-source "$topdir/oe-init-build-env" > /dev/null
+source "$topdir/oe-init-build-env" "$topdir/build" >/dev/null
 cd "$topdir"
 
 build_config="$topdir/build/conf/local.conf"
