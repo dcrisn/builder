@@ -138,7 +138,8 @@ class Concrete_sdk(Sdk):
         configured["VERBOSE"] = "Y" 
         configured["BUILD_ARTIFACTS_OUTDIR"] = paths.outdir
         configured["PACKAGE_OUTDIR"] = self.paths.get(context='container', label='pkg_outdir')
-        configured["NUM_BUILD_CORES"] = self.conf["num_build_cores"]
+        if self.conf["num_build_cores"]:
+            configured["NUM_BUILD_CORES"] = self.conf["num_build_cores"]
         configured["PYTHONPATH"] = (os.getenv("PYTHONPATH") or '') + ":" + paths.basedir
         configured["CONFIGS_DIR"] = paths.files
         configured["SDK_TOPDIR"] = paths.sdk_path + self.dir_name
@@ -277,6 +278,8 @@ class Concrete_sdk(Sdk):
         #print("container is ", container)
         #self.container = container
 
+    def num_build_cores(self):
+        return self.get_env_vars()["NUM_BUILD_CORES"]
 
     def build_container_image(self, short_circuit=False):
         nocache = True if self.conf["start_clean"] else False
@@ -288,7 +291,7 @@ class Concrete_sdk(Sdk):
                 "SDK_DIRNAME" : self.dir_name,
                 "TARGET" : self.target,
                 "QUIET_MODE_CLI_FLAG" : not self.conf["verbose"] and "--quiet" or "",
-                "NUM_BUILD_CORES_CLI_FLAG" : "--cores=" + self.conf["num_build_cores"],
+                "NUM_BUILD_CORES_CLI_FLAG" : "--cores=" + self.num_build_cores(),
                 "BUILD_ARTIFACTS_OUTDIR" : self.paths.get(context='container', label='outdir'),
                 "DEV_BUILD_CLI_FLAG" : (self.conf["sdk_build_type"] == "dev") and "-d" or "",
                 "SHORT_CIRCUIT_MAGIC_CLI_FLAG": ("--skip-all" if short_circuit else "")
