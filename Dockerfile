@@ -122,7 +122,6 @@ ADD  --chown=$UID:$UID staging /home/$USER/base
 
 ENV PATH="$PATH:/home/$USER/.local/bin"
 ENV BASE_DIR "/home/$USER/base/"
-ENV PYVENV "/home/$USER/pyvenv"
 WORKDIR $BASE_DIR
 
 # We are already in a sandbox: the container. A venv is redundant.
