@@ -92,9 +92,13 @@ class Concrete_sdk(Sdk):
         self.build_type = confvars["sdk_build_type"]
         #self.docker = docker.from_env()
         self.containers        = containers.get_interface_to(self.conf['container_tech'])
+        self.inside_container = containers.inside_container()
         self.container_img_tag = f"{self.name}_{self.tag}:latest_{self.build_type}_{self.target}".lower()
         self.container = None
         self.set_start_timestamp()
+
+    def is_inside_container(self):
+        return self.inside_container
 
     def set_start_timestamp(self):
         ctx = self.paths.get_current_context()
@@ -143,7 +147,16 @@ class Concrete_sdk(Sdk):
     
     def get_mounts(self, validate=True):
         mounts=[]
+
+        # if the build is 'automated' rather than 'dev',
+        # we do not use mounts
         if self.conf["sdk_build_type"] != "dev":
+            return mounts
+
+        # if we are already inside the container, no mounts.
+        # we only mount paths from the host _into_ the container,
+        # not paths from the container on top of other container paths.
+        if self.is_inside_container():
             return mounts
         
         sdk_root = (

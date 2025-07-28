@@ -112,6 +112,7 @@ def sanitize_cli(argv):
     if unsane:
         raise ValueError("Invalid command line")
 
+print(f" ** Invocation: {sys.argv}", flush=True)
 parser = argparse.ArgumentParser(description='Build SDK automaton')
 parser.add_argument('-d',
                      '--devbuild-with-host-mounts',
@@ -229,12 +230,13 @@ parser.add_argument("--skip-all",
                     help=argparse.SUPPRESS
                     )
 
-print(f" ** Invocation: {sys.argv}", flush=True)
 os.chdir(utils.get_project_root())
 args = parser.parse_args()
 sanitize_cli(args)
 
-if (args.skip_all): exit(0)
+if (args.skip_all):
+    print("MAGIC_CLI_SHORT_CIRCUIT_FLAG passed, exiting ok")
+    exit(0)
 
 # guards for certain actions and prints
 build_mode  = not (args.populate_staging or args.container or args.list_targets or args.validate_jsons)
@@ -249,7 +251,7 @@ paths              = settings.set_paths(args.target)
 start_clean        = args.clean
 steps_file         = paths.dev_build_steps if args.devbuild else paths.automated_build_steps
 sdk_build_type     = "dev" if args.devbuild else "automated"
-num_build_cores    = args.num_build_cores or 1
+num_build_cores    = args.num_build_cores or None
 schemas_dir        = paths.schemas
 steps_dir          = paths.steps_dir
 env_defaults_file  = paths.env_defaults
@@ -296,7 +298,7 @@ else:
 
     confvars = {
             'sdk_build_type'    : sdk_build_type,
-            'num_build_cores'   : str(num_build_cores),
+            'num_build_cores'   : str(num_build_cores) if num_build_cores else None,
             'start_clean'       : start_clean,
             'verbose'           : verbose,
             "build_artifacts_archive_name": tgspec["build_artifacts_archive_name"],
