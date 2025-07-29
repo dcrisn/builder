@@ -35,7 +35,6 @@ if [[ ! -d "meta-openembedded" ]]; then
     bitbake-layers add-layer meta-openembedded/meta-oe
 
     bitbake-layers add-layer meta-openembedded/meta-python
-    show_layers "after adding meta-python"
 
     # depends on meta-python
     # adds wireguard, etc.
@@ -55,7 +54,6 @@ if [[ ! -d "meta-raspberrypi" ]]; then
     # raspberry-pi board support
     git clone -b $BRANCH git://git.yoctoproject.org/meta-raspberrypi
     bitbake-layers add-layer meta-raspberrypi
-    show_layers "after adding meta-raspberrypi"
 else
     pull_latest "meta-raspberrypi" "$BRANCH"
 fi
@@ -65,7 +63,6 @@ if [[ ! -d "meta-virtualization" ]];then
     # lxc support; depends on meta-filesystems.
     git clone -b $BRANCH git://git.yoctoproject.org/meta-virtualization
     bitbake-layers add-layer meta-virtualization
-    show_layers "after adding meta-virtualization"
 else
     pull_latest "meta-virtualization" "$BRANCH"
 fi
@@ -75,9 +72,7 @@ if [[ ! -d "meta-tarp" ]]; then
     # tarp layers
     git clone -b $BRANCH https://github.com/dcrisn/meta-tarp
     bitbake-layers add-layer meta-tarp/layers/meta-tarp-raspberrypi
-    show_layers "after adding meta-tarp/meta-tarp-raspberrypi"
     bitbake-layers add-layer meta-tarp
-    show_layers "after adding meta-tarp/meta-tarp"
 else
     pull_latest "meta-tarp" "$BRANCH"
 fi
