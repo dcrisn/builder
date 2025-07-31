@@ -271,3 +271,10 @@ def print_dirtree(startpath):
     print(startpath)
     walk_dir(startpath)
 
+def make_file(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path): return
+    with open(path, 'w') as f:
+        pass
+
+

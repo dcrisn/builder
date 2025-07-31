@@ -119,8 +119,9 @@ def generate_target_tree(target, path, pathmap):
     common_files = root + "/files"
     dst = f"{path}/{target}"
     md = lambda x: os.makedirs(f'{dst}/{x}', exist_ok=True)
-    mf = lambda x: Path(f'{dst}/{x}').touch()
+    mf = lambda x: utils.make_file(f'{dst}/{x}')
     
+    utils.cp_file(f'{pathmap.tgroot}/target_spec_template.json', f'{dst}/')
     # create required file directories, and copy default files
     filedirs = ['sdk_config', 'system_config']
     for filedir in filedirs:
@@ -132,13 +133,13 @@ def generate_target_tree(target, path, pathmap):
             d = f"{dst}/" + dirpath.replace(root,'').replace('/common', '')
             for f in files:
                 utils.cp_file(f'{dirpath}/{f}', d)
-
     stages = [x for x in os.listdir(f'{root}/scripts/') if x != 'hooks']
     hooks = [x for x in os.listdir(f'{root}/scripts/hooks') if not x.endswith('.py')]
     for stage in stages:
         md(f'scripts/{stage}')
     for hook in hooks:
         md(f'scripts/hooks/{hook}')
+
     utils.print_dirtree(dst)
 
 def generate_sdk_tree(sdk, path, tgroot):
