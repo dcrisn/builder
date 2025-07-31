@@ -114,10 +114,13 @@ RUN echo "$(id -un $UID) ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/10-$USER
 
 USER $UID:$GID
 
+ARG SYSTEM_CONFIGS
+ARG SDK_CONFIGS
+
 # Copy ssh keys for ssh access to any internal servers
 RUN mkdir -p /home/$USER/.ssh
-ADD  --chown=$UID:$UID staging/files/system_config/ssh /home/$USER/.ssh/
-COPY --chown=$UID:$UID staging/files/system_config/gitconfig /home/$USER/.gitconfig
+ADD  --chown=$UID:$UID ${SYSTEM_CONFIGS}/ssh /home/$USER/.ssh/
+COPY --chown=$UID:$UID ${SYSTEM_CONFIGS}/gitconfig /home/$USER/.gitconfig
 ADD  --chown=$UID:$UID staging /home/$USER/base
 
 ENV PATH="$PATH:/home/$USER/.local/bin"

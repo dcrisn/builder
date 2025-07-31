@@ -294,7 +294,9 @@ class Concrete_sdk(Sdk):
                 "NUM_BUILD_CORES_CLI_FLAG" : "--cores=" + self.num_build_cores(),
                 "BUILD_ARTIFACTS_OUTDIR" : self.paths.get(context='container', label='outdir'),
                 "DEV_BUILD_CLI_FLAG" : (self.conf["sdk_build_type"] == "dev") and "-d" or "",
-                "SHORT_CIRCUIT_MAGIC_CLI_FLAG": ("--skip-all" if short_circuit else "")
+                "SHORT_CIRCUIT_MAGIC_CLI_FLAG": ("--skip-all" if short_circuit else ""),
+                "SYSTEM_CONFIGS": (self.paths.get(context='staging', label='system_configs')),
+                "SDK_CONFIGS": (self.paths.get(context='staging', label='sdk_configs'))
                 }
         print(build_args)
 

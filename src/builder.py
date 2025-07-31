@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 
 """
-Copyright (c) 2022, vcsaturninus -- vcsaturninus@protonmail.com
+Copyright (c) 2025, dcrisn -- d.crisn@outlook.com
 """
 
 import argparse
 import os
 import sys
 import shutil
+from pathlib import Path
 
 import utils
 import containers
@@ -104,6 +105,45 @@ def load_mount_defaults():
     """ Currently unused """
     return []
 
+def generate_target_tree(target, path, pathmap):
+    """Generate the required directory tree for an external target.
+    The directory will be created under path/target/.
+    The directory tree will be prepopulated with some standard files.
+    """
+    if not os.path.exists(path):
+        raise ValueError("No such directory: " + path)
+    if not os.path.isdir(path):
+        raise ValueError(f"Path '{path}' is not a directory")
+
+    root = os.path.abspath(pathmap.tgroot + "/common")
+    common_files = root + "/files"
+    dst = f"{path}/{target}"
+    md = lambda x: os.makedirs(f'{dst}/{x}', exist_ok=True)
+    mf = lambda x: Path(f'{dst}/{x}').touch()
+    
+    # create required file directories, and copy default files
+    filedirs = ['sdk_config', 'system_config']
+    for filedir in filedirs:
+        common_path = f"{common_files}/{filedir}/common/"
+        md(f'files/{filedir}')
+        for dirpath, dirs, files in os.walk(common_path):
+            dirs = [x for x in dirs if not x.startswith('.')]
+            files = [x for x in files if not x.startswith('.')]
+            d = f"{dst}/" + dirpath.replace(root,'').replace('/common', '')
+            for f in files:
+                utils.cp_file(f'{dirpath}/{f}', d)
+
+    stages = [x for x in os.listdir(f'{root}/scripts/') if x != 'hooks']
+    hooks = [x for x in os.listdir(f'{root}/scripts/hooks') if not x.endswith('.py')]
+    for stage in stages:
+        md(f'scripts/{stage}')
+    for hook in hooks:
+        md(f'scripts/hooks/{hook}')
+    utils.print_dirtree(dst)
+
+def generate_sdk_tree(sdk, path, tgroot):
+    pass
+
 def sanitize_cli(argv):
     unsane = False
     if argv.verbose and argv.quiet:
@@ -128,6 +168,27 @@ parser.add_argument('-t',
                      dest='target',
                      help='Target platform to build for'
                      )
+
+parser.add_argument('--target-tree',
+                     metavar='TREE',
+                     action='store',
+                     dest='target_tree',
+                     help='File tree containing configuration for the specified target'
+                     )
+
+parser.add_argument('--sdk-tree',
+                    metavar='TREE',
+                    action='store',
+                    dest='sdk_tree',
+                    help="File tree containing configuration for the sdk required by the target spec"
+                    )
+
+parser.add_argument('--container-spec',
+                    metavar='SPEC',
+                    action='store',
+                    dest='buildspec',
+                    help="Spec file used to build container image (e.g. Dockerfile used to build Docker image) required for build environment"
+                    )
 
 parser.add_argument('-q',
                     '--quiet',
@@ -209,6 +270,33 @@ parser.add_argument("--stage",
                     help='Populate the staging directory and do nothing else.'
                     )
 
+subparsers = parser.add_subparsers(title='subcommands', dest='command')
+
+treegen_cmd = subparsers.add_parser(name ='treegen',
+                                    description='generate external-configuration tree',
+                                    help='generate external-configuration tree'
+                                    )
+
+treegen_cmd.add_argument('--target',
+                     action='store',
+                     metavar='NAME',
+                     dest='tree_target',
+                     help='Generate a target tree for the target with the given name'
+                     )
+
+treegen_cmd.add_argument('--sdk',
+                    action='store',
+                    metavar='NAME',
+                    dest='tree_sdk',
+                    help="Generate an sdk tree for the sdk with the given name"
+                    )
+
+treegen_cmd.add_argument('path',
+                     metavar='PATH',
+                     #dest='tree_path',
+                     help='The directory path under which to generate the tree. The tree will be generated nested under PATH/<target/sdk>/'
+                     )
+
 # this is a hidden option that will not be shown for --help.
 # If this option is specified, the script ignores everything
 # else and simply exits with success immediately. 
@@ -265,6 +353,17 @@ if args.list_targets:
     print_known_targets(paths.tgroot)
 elif args.validate_jsons:
     validate_json_files(ignore_missing_specs=False)
+elif args.command == 'treegen':
+    if not args.tree_target and not args.tree_sdk:
+        print("exactly one of --target or --sdk must be specified")
+        sys.exit(1)
+    elif args.tree_target and args.tree_sdk:
+        print("--target and --sdk are mutually exclusive")
+        sys.exit(1)
+    if args.tree_target:
+        generate_target_tree(args.tree_target, args.path, paths)
+    elif args.tree_sdk:
+        generate_sdk_tree(args.tree_sdk, args.path, tgroot)
 else:
     target = args.target.lower() if args.target else None
     if not target:

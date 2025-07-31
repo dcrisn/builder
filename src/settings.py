@@ -112,6 +112,7 @@ def set_paths(target):
     paths.set(context='host', label='target_files', path='files', relativeto='target')
     paths.set(context='container', label='filestore', path=paths.get("container", "basedir"), relativeto=None)
     paths.set(context='host', label='filestore', path=paths.get("staging", "basedir"), relativeto=None)
+    paths.set(context='staging', label='filestore', path='.', relativeto='basedir')
     paths.set(context='host', label='staging', path=paths.get("staging", "basedir"), relativeto=None)
     paths.set(context='all', label='system_configs', path="files/system_configs", relativeto='filestore')
     paths.set(context='all', label='sdk_configs', path="files/sdk_configs", relativeto='filestore')
