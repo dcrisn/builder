@@ -22,7 +22,7 @@ def clean_up_paths(paths):
         shutil.rmtree(path, ignore_errors=True)
         os.makedirs(path)
 
-def normalize_extra_target_paths(extra_target_paths: list[str]):
+def normalize_extra_target_paths(extra_target_paths):
     """The --target-tree option points either to a directory that
     directly contains a target spec.json (i.e. a target directory),
     or to a directory that in turn contains one of more such directories.
@@ -50,7 +50,7 @@ def normalize_extra_target_paths(extra_target_paths: list[str]):
                 paths.append(d)
     return paths
 
-def normalize_extra_buildspec_file_paths(extra_buildspec_file_paths: list[str]):
+def normalize_extra_buildspec_file_paths(extra_buildspec_file_paths):
     """The --container-spec option points either to a file,
     or to a directory of files. Each file ending in .buildspec is
     considered a buildspec file.
@@ -76,8 +76,8 @@ def normalize_extra_buildspec_file_paths(extra_buildspec_file_paths: list[str]):
                         paths.append(x)
     return paths
 
-def install_tmp_specs_overlay(pathmap, extra_target_paths : list[str],
-                              extra_container_image_buildspec_file_paths: list[str]):
+def install_tmp_specs_overlay(pathmap, extra_target_paths,
+                              extra_container_image_buildspec_file_paths):
     """Cp the specs directory to a temporary directory, and then copy each
     path in extra_target_paths (which must have been normalized via
     normalize_extra_target_paths()), recursively, into the tgroot under specs."""
@@ -119,7 +119,7 @@ def install_tmp_specs_overlay(pathmap, extra_target_paths : list[str],
 def targets_from_tgroot(tgroot):
     return [f'{tgroot}/{x}' for x in os.listdir(tgroot) if os.path.exists(f'{tgroot}/{x}/{x}_spec.json')]
 
-def load_known_targets(tgroot, extra_targets: list[str]):
+def load_known_targets(tgroot, extra_targets):
     """
     List targets that are currently supported i.e. can be built.
     tgroot is the in-tree target root. extra_targets is a list
@@ -134,7 +134,7 @@ def load_known_targets(tgroot, extra_targets: list[str]):
         targets[tgname] = True
     return targets
 
-def print_known_targets(tgroot, extra_targets : list[str]):
+def print_known_targets(tgroot, extra_targets):
     targets = load_known_targets(tgroot, extra_targets).keys()
     if not len(targets):
         print("No support for any targets")
@@ -143,7 +143,7 @@ def print_known_targets(tgroot, extra_targets : list[str]):
         for tg in targets:
             print(f"\t ** {tg}")
 
-def is_known_target(target, extra_targets : list[str]):
+def is_known_target(target, extra_targets):
     return bool(load_known_targets(tgroot, extra_targets).get(target))
 
 def validate_json_files(specs_path : str, ignore_missing_specs):
@@ -468,7 +468,7 @@ else:
     if not target:
         print("Mandatory argument not specified: '-t|--target'")
         sys.exit(13)
-    elif not is_known_target(target):
+    elif not is_known_target(target, extra_targets):
         print_known_targets(paths.tgroot, extra_targets)
         raise LookupError(f"Target specified ('{target}') not supported")
     
