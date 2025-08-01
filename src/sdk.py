@@ -300,10 +300,13 @@ class Concrete_sdk(Sdk):
                 }
         print(build_args)
 
+        container_image_build_recipe = self.conf["container_image_recipe"]
+
         print(f"----- building docker image with tag: {self.container_img_tag}")
         stream = self.containers.build_image(
                 nocache,
                 self.paths.basedir,
+                container_image_recipe,
                 tag = self.container_img_tag,
                 **build_args
                 )
