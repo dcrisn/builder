@@ -85,6 +85,7 @@ def set_paths(target):
     paths.set(context='container', label='home', path='/home/dev', relativeto=None)
     paths.set(context='all', label='tmpdir', path='.tmp', relativeto='basedir')
     paths.set(context='all', label='specs', path='spec', relativeto='basedir')
+    paths.set(context='all', label='tmpspecs', path='spec', relativeto='tmpdir')
     paths.set(context='all', label='tgroot', path='targets', relativeto='specs')
     paths.set(context='all', label='target', path=target, relativeto='tgroot')
     paths.set(context='all', label='tgspec', path=f"{target}_spec.json", relativeto='target', isfile=True)
