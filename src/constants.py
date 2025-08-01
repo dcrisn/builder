@@ -1,0 +1,1 @@
+BUILDSPEC_SUFFIX = '.buildspec'
