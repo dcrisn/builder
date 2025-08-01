@@ -5,6 +5,7 @@
     "sdk_url" : "https://git.openwrt.org/openwrt/openwrt.git",
     "sdk_tag" : "openwrt-22.03",
     "external_toolchain": false,
+    "container_image_buildspec_file": "Dockerfile.ubuntu22.buildspec",
     "build_artifacts_archive_name": "artifacts",
     "environment" : {
         "variables": {

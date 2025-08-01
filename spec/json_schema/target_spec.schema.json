@@ -44,7 +44,8 @@
         },
         "container_image_buildspec_file": {
             "type": "string",
-            "description": "Spec file for building container image (e.g. Dockerfile to build Docker image)"
+            "description": "Spec file for building container image (e.g. Dockerfile to build Docker image)",
+            "$ref" : "./enum/container_image_buildspec_files.json"
         },
         "schema": {
             "type": "string",

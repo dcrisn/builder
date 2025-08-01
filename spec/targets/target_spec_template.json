@@ -6,6 +6,7 @@
     "sdk_tag" : "scarthgap-5.0.10",
     "external_toolchain": false,
     "build_artifacts_archive_name": "artifacts",
+    "container_image_buildspec_file": "Dockerfile.ubuntu24.buildspec",
     "environment" : {
         "variables": {
             "NUM_BUILD_CORES" : "8",
