@@ -91,6 +91,7 @@ def set_paths(target):
     paths.set(context='all', label='tgspec', path=f"{target}_spec.json", relativeto='target', isfile=True)
     paths.set(context='all', label='schemas', path='json_schema', relativeto='specs')
     paths.set(context='all', label='steps_dir', path='steps', relativeto='specs')
+    paths.set(context='all', label='buildspecs', path='container_image_buildspec', relativeto='specs')
     paths.set(context='all', label='common', path='common', relativeto='tgroot')
     paths.set(context='host', label='outdir', path='out', relativeto='basedir')
     paths.set(context='container', label='outdir', path='out', relativeto='home')

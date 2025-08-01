@@ -300,7 +300,10 @@ class Concrete_sdk(Sdk):
                 }
         print(build_args)
 
-        container_image_build_recipe = self.conf["container_image_recipe"]
+        # we use the recipe from the staging dir
+        specs_dir = paths.get(context='staging', label='specs')
+        var = self.conf["container_image_recipe"]
+        container_image_recipe = f'{specs_dir}/container_image_buildspec/{var}'
 
         print(f"----- building docker image with tag: {self.container_img_tag}")
         stream = self.containers.build_image(
@@ -326,6 +329,7 @@ class Concrete_sdk(Sdk):
         utils.cp_dir(current.depends, staging.depends, just_contents=True)
         utils.cp_dir(current.schemas, staging.schemas, just_contents=True)
         utils.cp_dir(current.steps_dir, staging.steps_dir, just_contents=True)
+        utils.cp_dir(current.buildspecs, staging.buildspecs, just_contents=True)
         utils.cp_file(current.tgspec, staging.target, must_exist=True)
         utils.cp_file(current.env_defaults, staging.common + 'specs/', must_exist=True)
         utils.cp_file(current.common_hooks + "run_hooks.py", staging.hooks, must_exist=True)
@@ -354,8 +358,22 @@ class Concrete_sdk(Sdk):
         utils.cp_dir(current.common_hooks + f"prepare_sdk/{self.name}", staging.scripts + "hooks/prepare_sdk", just_contents=True)
 
         # overrides or target-specific files
-        utils.cp_dir(current.target_files, staging.basedir)
-        utils.cp_dir(current.target_scripts, staging.basedir)
+        target_files = current.target_files
+        target_scripts = current.target_scripts
+        if os.path.exists(target_files):
+            utils.cp_dir(current.target_files, staging.basedir)
+            utils.cp_dir(current.target_scripts, staging.basedir)
+        else:
+            # out-of-tree files, IFF the target is defined out-of-tree.
+            # -- the targets.enum schema
+            # -- the buildspecs.enum schema
+            # -- the target configuration
+            target_tree = f'{current.tmpspecs}/targets/{self.target}'
+            buildspecs = f'{current.tmpspecs}/container_image_buildspec'
+            schemas = f'{current.tmpspecs}/json_schema/'
+            utils.cp_dir(buildspecs, staging.buildspecs, just_contents=True)
+            utils.cp_dir(target_tree, staging.basedir, just_contents=True)
+            utils.cp_dir(schemas, staging.schemas, just_contents=True)
 
         for pyfile in glob.glob("*.py"):
             shutil.copy2(pyfile, staging.basedir)

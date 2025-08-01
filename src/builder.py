@@ -494,14 +494,14 @@ else:
         utils.log(f" > Validating {developer_config} against schema ...")
         utils.validate_json_against_schema(developer_config, schemas_dir)
     
-    image_recipe = f'{paths.specs}/container_image_buildspec/{tgspec["container_image_buildspec_file"]}'
+    #
     confvars = {
             'sdk_build_type'    : sdk_build_type,
             'num_build_cores'   : str(num_build_cores) if num_build_cores else None,
             'start_clean'       : start_clean,
             'verbose'           : verbose,
             "build_artifacts_archive_name": tgspec["build_artifacts_archive_name"],
-            "container_image_recipe": image_recipe,
+            "container_image_recipe": tgspec['container_image_buildspec_file'],
             "build_user"        : settings.build_user,
             "container_tech"    : settings.container_technology,
             "env_defaults"      : load_env_defaults(),
