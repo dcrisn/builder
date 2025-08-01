@@ -140,7 +140,7 @@ class Concrete_sdk(Sdk):
         configured["PACKAGE_OUTDIR"] = self.paths.get(context='container', label='pkg_outdir')
         if self.conf["num_build_cores"]:
             configured["NUM_BUILD_CORES"] = self.conf["num_build_cores"]
-        configured["PYTHONPATH"] = (os.getenv("PYTHONPATH") or '') + ":" + paths.basedir
+        configured["PYTHONPATH"] = (os.getenv("PYTHONPATH") or '') + f':{paths.basedir}:{paths.src}'
         configured["CONFIGS_DIR"] = paths.files
         configured["SDK_TOPDIR"] = paths.sdk_path + self.dir_name
 
@@ -208,7 +208,7 @@ class Concrete_sdk(Sdk):
         container = self.containers.new_container(self.container_img_tag, environ)
         container.set_mounts(self.get_mounts())
 
-        cmd = self.paths.get('container', 'basedir') + self.conf['builder_entrypoint'] + f" -t {self.target} --cores={environ['NUM_BUILD_CORES']}"
+        cmd = self.paths.get('container', 'src') + self.conf['builder_entrypoint'] + f" -t {self.target} --cores={environ['NUM_BUILD_CORES']}"
         utils.log(f"Starting container with cmd '{cmd}'")
         container.run(cmd)
 
@@ -283,6 +283,10 @@ class Concrete_sdk(Sdk):
 
     def build_container_image(self, short_circuit=False):
         nocache = True if self.conf["start_clean"] else False
+        sdk_configs = self.paths.get(context='staging', label='sdk_configs')
+        system_configs = self.paths.get(context='staging', label='system_configs')
+        sdk_configs = sdk_configs.replace(self.paths.basedir, './')
+        system_configs = system_configs.replace(self.paths.basedir, './')
         build_args = {
                 "UID"     : str(os.getuid()),
                 "GID"     : str(os.getgid()),
@@ -295,13 +299,13 @@ class Concrete_sdk(Sdk):
                 "BUILD_ARTIFACTS_OUTDIR" : self.paths.get(context='container', label='outdir'),
                 "DEV_BUILD_CLI_FLAG" : (self.conf["sdk_build_type"] == "dev") and "-d" or "",
                 "SHORT_CIRCUIT_MAGIC_CLI_FLAG": ("--skip-all" if short_circuit else ""),
-                "SYSTEM_CONFIGS": (self.paths.get(context='staging', label='system_configs')),
-                "SDK_CONFIGS": (self.paths.get(context='staging', label='sdk_configs'))
+                "SYSTEM_CONFIGS": system_configs,
+                "SDK_CONFIGS": sdk_configs,
                 }
         print(build_args)
 
         # we use the recipe from the staging dir
-        specs_dir = paths.get(context='staging', label='specs')
+        specs_dir = self.paths.get(context='staging', label='specs')
         var = self.conf["container_image_recipe"]
         container_image_recipe = f'{specs_dir}/container_image_buildspec/{var}'
 
@@ -375,8 +379,8 @@ class Concrete_sdk(Sdk):
             utils.cp_dir(target_tree, staging.basedir, just_contents=True)
             utils.cp_dir(schemas, staging.schemas, just_contents=True)
 
-        for pyfile in glob.glob("*.py"):
-            shutil.copy2(pyfile, staging.basedir)
+        # cp all scripts
+        utils.cp_dir(f'{current.src}/', f'{staging.src}/', empty_first=False, just_contents=True)
 
     def system_prepare(self):
         pass

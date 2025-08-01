@@ -83,6 +83,7 @@ def set_paths(target):
     paths.set_current_context('container' if containers.inside_container() else 'host')
 
     paths.set(context='container', label='home', path='/home/dev', relativeto=None)
+    paths.set(context='all', label='src', path='src', relativeto='basedir')
     paths.set(context='all', label='tmpdir', path='.tmp', relativeto='basedir')
     paths.set(context='all', label='specs', path='spec', relativeto='basedir')
     paths.set(context='all', label='tmpspecs', path='spec', relativeto='tmpdir')
@@ -116,8 +117,8 @@ def set_paths(target):
     paths.set(context='host', label='filestore', path=paths.get("staging", "basedir"), relativeto=None)
     paths.set(context='staging', label='filestore', path='.', relativeto='basedir')
     paths.set(context='host', label='staging', path=paths.get("staging", "basedir"), relativeto=None)
-    paths.set(context='all', label='system_configs', path="files/system_configs", relativeto='filestore')
-    paths.set(context='all', label='sdk_configs', path="files/sdk_configs", relativeto='filestore')
+    paths.set(context='all', label='system_configs', path="files/system_config", relativeto='filestore')
+    paths.set(context='all', label='sdk_configs', path="files/sdk_config", relativeto='filestore')
 
     paths.set(context='staging;container', label='files', path='files', relativeto='basedir')
     paths.set(context='staging;container', label='scripts', path='scripts', relativeto='basedir')
