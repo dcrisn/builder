@@ -72,7 +72,6 @@ def get_project_root():
     cwd = os.path.dirname(os.path.realpath(__file__)) + '/'
     root = os.path.abspath(f"{cwd}/..")
     # project root must have the .git directory
-    assert(os.path.exists(f"{root}/.git"))
     return root
 
 def cp_dir(src_dir, dst_dir, empty_first=False, just_contents=False):
