@@ -411,7 +411,6 @@ class Concrete_sdk(Sdk):
         if os.path.exists(current.tgspec):
             utils.cp_dir(current.target_files, staging.basedir)
             utils.cp_dir(current.target_scripts, staging.basedir)
-            utils.cp_dir(current.target_scripts, staging.basedir)
         else:
             assert(os.path.exists(tmp.tgspec))
             # out-of-tree files, IFF the target is defined out-of-tree.
@@ -421,7 +420,8 @@ class Concrete_sdk(Sdk):
             
             # copy these files so the final merged file tree for the target
             # is complete inside the container (files, scripts etc)
-            utils.cp_dir(tmp.target, staging.basedir, empty_first=False, just_contents=True)
+            utils.cp_dir(tmp.target_files, staging.basedir)
+            utils.cp_dir(tmp.target_scripts, staging.basedir)
 
         # copy these files (potentially-patched schema files) so the
         # schema-validation logic works in the container
