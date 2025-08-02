@@ -76,6 +76,35 @@ def normalize_extra_buildspec_file_paths(extra_buildspec_file_paths):
                         paths.append(x)
     return paths
 
+def extra_targets_from_devconfig(developer_config):
+    """Return a list of normalized paths (see normalize_extra_target_paths())
+    of out-of-tree targets taken from the developer_config, if any.
+    """
+    if not developer_config:
+        return [],[]
+
+    j = utils.load_json_from_file(developer_config)
+    paths = j.get('extra_targets')
+    if not paths:
+        return [],[]
+    normalized = normalize_extra_target_paths(paths)
+    return paths,normalized
+
+def extra_buildspecs_from_devconfig(developer_config):
+    """Return a list of normalized paths (see
+    normalize_extra_buildspec_file_paths())
+    of out-of-tree buildspecs taken from the developer_config, if any.
+    """
+    if not developer_config:
+        return [],[]
+
+    j = utils.load_json_from_file(developer_config)
+    paths = j.get('extra_container_buildspecs')
+    if not paths:
+        return [],[]
+    normalized = normalize_extra_buildspec_file_paths(paths)
+    return paths,normalized
+
 def install_tmp_specs_overlay(pathmap, extra_target_paths,
                               extra_container_image_buildspec_file_paths):
     """Cp the specs directory to a temporary directory, and then copy each
@@ -445,15 +474,24 @@ steps_dir          = paths.steps_dir
 env_defaults_file  = paths.env_defaults
 tgroot             = paths.tgroot
 extra_targets_orig = [os.path.abspath(x) for x in (args.target_tree or [])]
-extra_targets = normalize_extra_target_paths(extra_targets_orig)
 extra_buildspec_files_orig = [os.path.abspath(x) for x in (args.buildspec or [])]
-extra_buildspec_files = normalize_extra_buildspec_file_paths(extra_buildspec_files_orig)
+
 developer_config   = args.devconfig if args.devconfig else paths.get(paths.get_current_context(), 'devconfig', True)
 developer_config   = developer_config if os.path.isfile(developer_config) else None
 if developer_config and ((build_mode or interactive) and sdk_build_type != 'dev'):
     raise ValueError("Developer configs can only be used for dev containers")
 
-if verbose:
+extra_targets = normalize_extra_target_paths(extra_targets_orig)
+extra_buildspec_files = normalize_extra_buildspec_file_paths(extra_buildspec_files_orig)
+
+a, b = extra_targets_from_devconfig(developer_config)
+c, d = extra_buildspecs_from_devconfig(developer_config)
+extra_targets_orig += a
+extra_targets += b
+extra_buildspec_files_orig += c
+extra_buildspec_files += d
+
+if verbose and not containers.inside_container():
     print("")
     print(f"{len(extra_targets)} extra targets found after normalization")
     if len(extra_targets_orig) > 0:
