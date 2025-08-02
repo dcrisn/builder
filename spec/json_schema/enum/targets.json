@@ -4,9 +4,9 @@
     "description": "Enumeration of supported targets",
     "type": "string",
     "enum": [
-        "rpi4b",
-        "rpi4b_yocto",
-        "x86_glibc"
+        "rpi4b-openwrt22",
+        "rpi4b-yocto",
+        "x86-glibc-openwrt22"
     ]
 }
 

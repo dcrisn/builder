@@ -1,8 +1,10 @@
 {
     "schema" : "target_spec.schema.json",
-    "target": "rpi4b_yocto",
+    "target": "rpi4b-yocto",
     "sdk_name" : "yocto",
-    "sdk_url" : "http://git.yoctoproject.org/git/poky",
+    "sdk_url" : [
+        "http://git.yoctoproject.org/git/poky"
+    ],
     "sdk_tag" : "scarthgap-5.0.10",
     "external_toolchain": false,
     "build_artifacts_archive_name": "artifacts",

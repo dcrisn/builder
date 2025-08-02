@@ -16,7 +16,10 @@
         },
         "sdk_url": {
             "description" : "Url to download sdk from",
-            "type": "string"
+            "type": "array",
+              "items": {
+                  "type": "string"
+              }
         },
         "sdk_tag": {
             "description" : "The branch or exact tag to check out once the SDK has been cloned",
