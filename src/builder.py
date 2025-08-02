@@ -491,6 +491,13 @@ extra_targets += b
 extra_buildspec_files_orig += c
 extra_buildspec_files += d
 
+if args.command == 'treegen':
+    if not args.tree_target:
+        print("--target option missing")
+        sys.exit(1)
+    generate_target_tree(args.tree_target, args.path, paths)
+    sys.exit(0)
+
 if verbose and not containers.inside_container():
     print("")
     print(f"{len(extra_targets)} extra targets found after normalization")
@@ -501,18 +508,12 @@ if verbose and not containers.inside_container():
     if len(extra_buildspec_files_orig) > 0:
         print(f"Input extra_buildspec paths: {extra_buildspec_files_orig} --> normalized: {extra_buildspec_files}")
         print("")
-#
 
 if args.list_targets:
     print_known_targets(paths.tgroot, extra_targets)
 elif args.validate_jsons:
     install_tmp_specs_overlay(paths, extra_targets, extra_buildspec_files)
     validate_json_files(paths.get(context='tmp',label='specs'), ignore_missing_specs=False)
-elif args.command == 'treegen':
-    if not args.tree_target:
-        print("--target option missing")
-        sys.exit(1)
-    generate_target_tree(args.tree_target, args.path, paths)
 else:
     target = args.target.lower() if args.target else None
     if not target:
