@@ -150,16 +150,16 @@ project. That is, they are _not_ converted to in-tree targets. Any time builder
 is invoked with reference to an out-of-tree target, the `--target-tree` option
 must be specified to tell builder where to find the referenced target.
 
-See the [Using out-of-tree targets section](using-out-of-tree-targets) for an
+See the [Using out-of-tree targets section](#using-out-of-tree-targets) for an
 example of using an out-of-tree target.
 
 ### In-tree and out-of-tree container recipes
 
 Each target specification file `<target>_spec.json` has a
-`container_image_buildspec_file` property. This is the name of dockerfile
+`container_image_buildspec_file` property. This is the name of a dockerfile
 to use for building the container environment that will in turn be used to build
-the target sdk. The property is not simply named 'dockerfile' in order to remain
-relatively agnostic w.r.t. to the container technology.
+the target sdk. The reason the property is not simply named 'dockerfile' is
+so as to to remain relatively agnostic w.r.t. to the container technology.
 
 Having these 'container recipe' ('container image buildspec') files in-tree 
 leads to the same issue as with in-tree targets: the source repository
@@ -169,11 +169,11 @@ The solution adopted is likewise the same: allow for out-of-tree container
 recipe files. This is achieved via the `--container-spec` option.
 This options takes as argument the full path to either a buildspec file
 or to a directory that contains the file as a direct child.
-As with `--target-tree` option, the `--container-spec` option can be repeated
+As with the `--target-tree` option, the `--container-spec` option can be repeated
 as many times as needed.
 
 `builder` will build up a list of all known buildspecs (in-tree and out-of-tree)
-and then look for the one referencd in the target-spec of the specified
+and then look for the one referenced in the target-spec of the specified
 target.
 
 ### Automated and Development Setups
@@ -302,7 +302,7 @@ The [following in-tree target](spec/targets/rpi4b-openwrt22) will be used for
 the example.
 
 Briefly, the following are necessary:
- * A `<target_name>_spec.json` [target specification file](spec/targets/rpi4b/rpi4b-openwrt22_spec.json)
+ * A `<target_name>_spec.json` [target specification file](spec/targets/rpi4b-openwrt22/rpi4b-openwrt22_spec.json)
    is needed that sets various configuration parameters for the sdk build process
    -- source URL, environment variables to make available, etc.
 
@@ -558,7 +558,7 @@ Notably:
 
 ## Using out-of-tree targets
 
-As explained in the [in-tree and out-of-tree targets section](in-tree-and-out-of-tree-targets),
+As explained in the [in-tree and out-of-tree targets section](#in-tree-and-out-of-tree-targets),
 out-of-tree targets make it possible to extend builder with new targets
 (and similarly, with new container-image recipes) without having to change
 the `builder` source itself.
