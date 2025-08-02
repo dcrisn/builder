@@ -112,19 +112,37 @@ class Concrete_sdk(Sdk):
 
     def checkout(self):
         pabs = self.path.absolute()
-        cmd  = f"git clone {self.url} --branch {self.tag} --depth 1 {pabs}"
+        
+        if len(self.url) <= 0:
+            raise ValueError(f"cannot clone sdk: no URL provided.")
 
-        if self.path.exists():
-            if self.conf["start_clean"]:
+        # wipe sdk repo dir if start_clean=True
+        if self.conf["start_clean"]:
+            shutil.rmtree(pabs)
+
+        # if repo already cloned, then simply check out tag
+        if pabs.exists() and utils.is_git_repo(str(pabs)):
+            cmd = f"git -C {pabs} checkout {self.tag}"
+            utils.log(f"Running {cmd} ...")
+            utils.run(cmd)
+            return
+       
+        for url in self.url:
+            cmd  = f"git clone {url} --branch {self.tag} --depth 1 {pabs}"
+
+            if not self.path.exists():
+                self.path.mkdir(parents=True, exist_ok=True)
+     
+            try:
+                utils.log(f"Running {cmd} ...")
+                utils.run(cmd)
+            except Exception as e:
+                utils.log(f"Failed to clone sdk repo. Command={cmd}, error={e}") 
                 shutil.rmtree(pabs)
             else:
-                cmd = f"git -C {pabs} checkout {self.tag}"
-
-        if not self.path.exists():
-            self.path.mkdir(parents=True, exist_ok=True)
-
-        utils.log(f"Running {cmd} ...")
-        utils.run(cmd)
+                # done as soon as one URL works
+                return
+        raise RuntimeError(f"Failed to clone sdk repo. All urls failed. Urls: {self.url}")
     
     def get_env_vars(self, inherit=True):
         inherited   = dict(**os.environ if inherit else {})

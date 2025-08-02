@@ -74,6 +74,10 @@ def get_project_root():
     # project root must have the .git directory
     return root
 
+def is_git_repo(dirpath):
+    git_dir = f'{dirpath}/.git'
+    return os.path.exists(git_dir) and os.path.isdir(git_dir)
+
 def cp_dir(src_dir, dst_dir, empty_first=False, just_contents=False):
     """
     cp the directory a to inside b. The whole directory is copied,
