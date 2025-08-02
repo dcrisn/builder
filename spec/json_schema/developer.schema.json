@@ -20,14 +20,18 @@
                 "type": "string",
                 "description": "absolute path to the 'builder' directory where the associated dev-build (that you intend to use) for this target was performed"
             },
-            "extra_targets": [
+            "extra_targets": {
                 "type" : "array",
-                "items": "string"
-            ],
-            "extra_container_buildspecs": [
+                "items": {
+                    "type": "string"
+                }
+            },
+            "extra_container_buildspecs": {
                 "type": "array",
-                "items" : "string"
-            ],
+                "items": {
+                    "type": "string"
+                }
+            },
             "environment": {
                 "$ref": "./environment.schema.json"
             },
