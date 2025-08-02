@@ -5,6 +5,7 @@
     "type": "string",
     "enum": [
         "rpi4b-openwrt22",
+        "rpi4b-openwrt24",
         "rpi4b-yocto",
         "x86-glibc-openwrt22"
     ]
