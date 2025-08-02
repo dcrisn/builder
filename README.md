@@ -8,14 +8,17 @@ Generic sdk builder for automatic and 'dev' containizer builds
     * [Development setups](#development-setups)
  * [Overview](#overview)
     * [Main Script and Target Specification](#main-script-and-target-specification)
+    * [In-tree and out-of-tree targets](#in-tree-and-out-of-tree-targets)
+    * [In-tree and out-of-tree container recipes](#in-tree-and-out-of-tree-container-recipes)
     * [Automated and Development Setups](#automated-and-development-setups)
     * [Containers and Container Images and Saving Time](#containers-and-container-images-and-saving-time)
     * [Container Image Tags](#container-image-tags)
     * [Build Artifacts](#build-artifacts)
     * [Interactive Containers](#interactive-containers)
- * [Adding New Targets](#adding-a-new-target)
+ * [Target Anatomy](#target-anatomy)
     * [Common and target-specific files and scripts](#common-and-target-specific-files-and-scripts)
     * [Build stages, scripts, and hooks](#build-stages-scripts-and-hooks)
+ * [Using out-of-tree targets](#using-out-of-tree-targets)
  * [Development SDK setups](#development-sdk-setups)
     * [Full SDK builds and restricted builds](#full-sdk-builds-and-restricted-builds)
     * [Interactive containers and developer.json](#interactive-containers-and-developerjson)
@@ -37,6 +40,11 @@ Build automated sdk for `<target>`:
 Or build dev sdk for `<target>`:
 ```
 ./builder.py --cores=$(nproc) --target <target> --devbuild
+```
+
+Use out-of-tree target:
+```
+./builder --cores=$(nproc) --target <target> --target-tree=$HOME/repos/extra_targets
 ```
 
 ## Problem Statement
@@ -71,7 +79,7 @@ With this in mind, to make this as generic as possible, what's provided is a
 bare-bones framework described by the aforementioned outline.
 The burden of dealing with the complex and variable specifics is shifted
 onto particular targets as they are integrated to make use of this framework
-(see [Adding a New Target](#Adding-a-New-Target)).
+(see [target anatomy](#target-anatomy)).
 
 ### Development Setups
 
@@ -103,6 +111,70 @@ Once integrated, the target to build for must be specified to `builder.py` e.g.:
 ./builder.py --target rpi4b --cores=$(nproc)
 ```
 Note the list of supported targets can be listed using `--list-targets`.
+
+### In-tree and out-of-tree targets
+
+An in-tree target is a target stored inside the builder project itself under
+`spec/<target>`. All the scripts and files of the target are stored there
+and all the schemas are aware of the target.
+
+To build an in-tree target, only the following is required:
+```
+./builder.py --target <target>  [ other options ]
+```
+However, to add a new in-tree target the project source repository must be
+changed. Much more practical therefore is to use out-of-tree targets.
+These are target directories that are identical to in-tree target
+directories but reside at arbitrary locations. `builder.py` can then
+be told where to look for such targets:
+```
+./builder.py  --target <target> --target-tree=/some/path
+```
+
+The `--target-tree` can be used to point either to a target directory e.g. 
+`rpi4b-openwrt24` or to a directory that contains as direct children
+such target directories:
+
+```
+targets
+ `- target1
+ `- target2
+ `- targetn
+```
+
+The option can be repeated as many times as needed. Builder will
+scan all paths specified across all options; all targets found are extracted
+and made available the same as in-tree targets. The normal logic (validation
+etc) applies after that. NOTE that the targets are not 'imported' into the
+project. That is, they are _not_ converted to in-tree targets. Any time builder
+is invoked with reference to an out-of-tree target, the `--target-tree` option
+must be specified to tell builder where to find the referenced target.
+
+See the [Using out-of-tree targets section](using-out-of-tree-targets) for an
+example of using an out-of-tree target.
+
+### In-tree and out-of-tree container recipes
+
+Each target specification file `<target>_spec.json` has a
+`container_image_buildspec_file` property. This is the name of dockerfile
+to use for building the container environment that will in turn be used to build
+the target sdk. The property is not simply named 'dockerfile' in order to remain
+relatively agnostic w.r.t. to the container technology.
+
+Having these 'container recipe' ('container image buildspec') files in-tree 
+leads to the same issue as with in-tree targets: the source repository
+must be updated if a new target/container recipe is to be added.
+
+The solution adopted is likewise the same: allow for out-of-tree container
+recipe files. This is achieved via the `--container-spec` option.
+This options takes as argument the full path to either a buildspec file
+or to a directory that contains the file as a direct child.
+As with `--target-tree` option, the `--container-spec` option can be repeated
+as many times as needed.
+
+`builder` will build up a list of all known buildspecs (in-tree and out-of-tree)
+and then look for the one referencd in the target-spec of the specified
+target.
 
 ### Automated and Development Setups
 
@@ -224,13 +296,13 @@ the container is automatically deleted on exit. E.g.
 ```
 -------------------------------------------------------------------
 
-## Adding a New Target
+## Target Anatomy
 
-A [target](spec/targets/rpi4b) has already been added for example purposes.
-Any new target should create a similar directory and follow the same structure.
+The [following in-tree target](spec/targets/rpi4b-openwrt22) will be used for
+the example.
 
 Briefly, the following are necessary:
- * A `<target_name>_spec.json` [target specification file](spec/targets/rpi4b/rpi4b_spec.json)
+ * A `<target_name>_spec.json` [target specification file](spec/targets/rpi4b/rpi4b-openwrt22_spec.json)
    is needed that sets various configuration parameters for the sdk build process
    -- source URL, environment variables to make available, etc.
 
@@ -273,7 +345,7 @@ duplication is twofold:
    for free: target or SDK configurations must do the work.
  * files and scripts are installed from the general to the specific to allow
    judicious overriding. This is to be able to reuse as much as possible while
-   easily overriding default or general behavior. Note again, `builer` does _not_
+   easily overriding default or general behavior. Note again, `builder` does _not_
    provide defaults such that all new targets would have to do is override them.
    However, it makes it easy for users that have multiple targets to write
    common scripts that can be easily reused and applied to individual targets.
@@ -400,7 +472,8 @@ Builder therefore installs files and scripts into its staging directory in the
 following order:
  * common files/scripts. These are common to any SDK or target
  * sdk-specific files/scripts
- * target-specific files/scripts.
+ * target-specific files/scripts. These could provided by an in-tree target or
+   an out-of-tree target.
 
 Files with the same name will be overwritten and overridden the farther you go down
 the list above. Ideally targets should augment rather than override
@@ -483,6 +556,89 @@ Notably:
     scripts to execute is its own namespace such that `100.fix_symlinks.sh` in
     `prebuild` and `100.fix_symlinks.sh` in `build` do _not_ conflict.
 
+## Using out-of-tree targets
+
+As explained in the [in-tree and out-of-tree targets section](in-tree-and-out-of-tree-targets),
+out-of-tree targets make it possible to extend builder with new targets
+(and similarly, with new container-image recipes) without having to change
+the `builder` source itself.
+
+This section will give a brief walkthrough of how to set up an external target.
+
+The example assumes there's a `~/builder_extra/targets` directory that contains
+various external targets to be used with `builder`.  Likewise, we assume there
+is a `~/builder_extra/container_recipes` directory that contains dockerfiles
+that are referenced by the out-of-tree targets.
+We'll add a new out-of-tree target and out-of-tree container recipe
+('buildspec') to the above.
+
+First, generate the required out-of-tree target file tree:
+```
+└─$ ./src/builder.py treegen --target rpi4b-openwrt24 /home/vcsaturninus/builder_extra/targets/
+ ** Invocation: ['./src/builder.py', 'treegen', '--target', 'rpi4b-openwrt24', '/home/vcsaturninus/builder_extra/targets/']
+/home/vcsaturninus/builder_extra/targets//rpi4b-openwrt24
+├── files
+│   ├── sdk_config
+│   └── system_config
+│       ├── gitconfig
+│       └── ssh
+│           ├── id_rsa
+│           └── id_rsa.pub
+├── rpi4b-openwrt24_spec.json
+└── scripts
+    ├── build
+    ├── hooks
+    │   ├── build_packages
+    │   ├── install_configs
+    │   ├── prepare_sdk
+    │   └── prepare_system
+    ├── postbuild
+    └── prebuild
+```
+
+`builder` generates the required tree and copies some default files. The default
+files can either be removed, replaced, or updated as required.
+In particular, the `rpi4b-openwrt24_spec.json` target spec file will now be
+updated to look as follows:
+
+```
+└─$ cat rpi4b_openwrt24_spec.json 
+{
+    "schema" : "target_spec.schema.json",
+    "target": "rpi4b-openwrt24",
+    "sdk_name" : "OpenWrt",
+    "sdk_url" : [
+        "https://git.openwrt.org/openwrt/openwrt.git",
+        "https://github.com/openwrt/openwrt.git"
+    ],
+    "sdk_tag" : "openwrt-24.10",
+    "external_toolchain": false,
+    "build_artifacts_archive_name": "artifacts",
+    "container_image_buildspec_file": "openwrt24.buildspec",
+    "environment" : {
+        "variables": {
+        }
+    }
+}
+```
+
+The `openwrt24.buildspec` file will not exist in-tree. We write a Dockerfile
+as required for the build, based on one of the in-tree ones and save it in
+`~/builder_extra/container_recipes/openwrt24.buildspec`.
+
+With this done, now builder can be invoked as follows:
+
+```
+builder.py \
+--target-tree=$HOME/builder_extra/targets  \
+--container-spec=$HOME/builder_extra/container_recipes \
+-t rpi4b-openwrt24
+```
+to use the out-of-tree files.
+
+**NOTE**: The out-of-tree paths can also be specified in the `dev-config.json`
+instead of at the cli for convenience, using the `extra_targets` and
+`extra_container_buildspec` fields.
 
 ## Development SDK setups
 
