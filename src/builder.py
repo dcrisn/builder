@@ -590,21 +590,13 @@ else:
         sdk.populate_staging_dir()
     elif args.container:
         sdk.populate_staging_dir()
-        if args.devbuild:
-            pass
-            #sdk.build_container_image(short_circuit=True)
         sdk.get_interactive_container(ephemeral=args.ephemeral)
     elif args.only_packages:
         sdk.populate_staging_dir()
-        if args.devbuild:
-            sdk.build_container_image(short_circuit=True)
         sdk.build_single_packages(args.only_packages)
         sdk.retrieve_build_artifacts(paths.get('container', 'pkg_outdir'))
     elif args.only_firmware:
         sdk.populate_staging_dir()
-        if args.devbuild:
-            #pass
-            sdk.build_container_image(short_circuit=True)
         sdk.build_only_firmware()
         sdk.retrieve_build_artifacts(paths.get('container', 'outdir'))
     else: # full sdk build

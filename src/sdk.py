@@ -299,6 +299,14 @@ class Concrete_sdk(Sdk):
         return self.get_env_vars()["NUM_BUILD_CORES"]
 
     def build_container_image(self, short_circuit=False):
+        sdk_build_type = self.conf['sdk_build_type']
+
+        # always short-circuit in case of dev-type builds.
+        # IOW, the builder.py script must never run when invoked
+        # in the process of building the container image
+        # (i.e. inside docker build)
+        short_circuit = short_circuit or sdk_build_type == 'dev'
+
         nocache = True if self.conf["start_clean"] else False
         sdk_configs = self.paths.get(context='staging', label='sdk_configs')
         system_configs = self.paths.get(context='staging', label='system_configs')
@@ -319,14 +327,21 @@ class Concrete_sdk(Sdk):
                 "SYSTEM_CONFIGS": system_configs,
                 "SDK_CONFIGS": sdk_configs,
                 }
-        print(build_args)
+        utils.log("BUILD_ARGS: ", build_args)
 
         # we use the recipe from the staging dir
         specs_dir = self.paths.get(context='staging', label='specs')
         var = self.conf["container_image_recipe"]
         container_image_recipe = f'{specs_dir}/container_image_buildspec/{var}'
 
-        print(f"----- building docker image with tag: {self.container_img_tag}")
+        utils.log(f"Building docker image with tag: {self.container_img_tag}")
+
+        # NOTE: we can bind-mount directories from the host when running a
+        # container, but NOT when building an image. In other words, paths
+        # can only be bind-mounted into containers, not images. This means
+        # if any hooks are invoked during the image-build stage, they have
+        # to handle this case i.e. they will not have an SDK_TOPDIR
+        # to operate on.
         stream = self.containers.build_image(
                 nocache,
                 self.paths.basedir,
