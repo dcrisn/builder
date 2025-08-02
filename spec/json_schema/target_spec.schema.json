@@ -19,7 +19,8 @@
             "type": "array",
               "items": {
                   "type": "string"
-              }
+              },
+              "minItems": 1
         },
         "sdk_tag": {
             "description" : "The branch or exact tag to check out once the SDK has been cloned",
