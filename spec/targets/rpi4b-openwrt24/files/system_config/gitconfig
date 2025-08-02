@@ -1,4 +1,0 @@
-[advice]
-	detachedHead = false
-[credential]
-	helper = store
