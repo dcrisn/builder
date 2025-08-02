@@ -1,0 +1,17 @@
+{
+    "schema" : "target_spec.schema.json",
+    "target": "rpi4b-openwrt24",
+    "sdk_name" : "OpenWrt",
+    "sdk_url" : [
+        "https://git.openwrt.org/openwrt/openwrt.git",
+        "https://github.com/openwrt/openwrt.git"
+    ],
+    "sdk_tag" : "openwrt-24.10",
+    "external_toolchain": false,
+    "build_artifacts_archive_name": "artifacts",
+    "container_image_buildspec_file": "Dockerfile.ubuntu24.buildspec",
+    "environment" : {
+        "variables": {
+        }
+    }
+}
