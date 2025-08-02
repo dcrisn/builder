@@ -16,10 +16,6 @@
                 "type": "string",
                 "description": "relative path to the schema to use (this schema)"
             },
-            "builder_dir": {
-                "type": "string",
-                "description": "absolute path to the 'builder' directory where the associated dev-build (that you intend to use) for this target was performed"
-            },
             "extra_targets": {
                 "type" : "array",
                 "items": {
@@ -41,8 +37,7 @@
         },
         "required" : [
             "environment",
-            "mounts",
-            "builder_dir"
+            "mounts"
         ],
         "additionalProperties" : false
 }
