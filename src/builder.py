@@ -81,24 +81,24 @@ def install_tmp_specs_overlay(pathmap, extra_target_paths,
     """Cp the specs directory to a temporary directory, and then copy each
     path in extra_target_paths (which must have been normalized via
     normalize_extra_target_paths()), recursively, into the tgroot under specs."""
-    utils.cp_dir(pathmap.specs, pathmap.tmpspecs, empty_first=True, just_contents=True)
-    tmp_specs = pathmap.tmpspecs
-    tmp_tgroot = f'{pathmap.tmpspecs}/targets'
+    host = pathmap.clone(context='host')
+    tmp = pathmap.clone(context='tmp')
+    utils.cp_dir(host.specs, tmp.specs, empty_first=True, just_contents=True)
     for path in extra_target_paths:
         basename = os.path.basename(path)
-        dstdir = f'{tmp_tgroot}/{basename}'
+        dstdir = f'{tmp.tgroot}/{basename}'
         utils.cp_dir(path, dstdir,  empty_first=True, just_contents=True)
 
-    buildspec_dir = f'{tmp_specs}/container_image_buildspec/'
+    buildspec_dir = f'{tmp.buildspecs}'
     for path in extra_container_image_buildspec_file_paths:
         utils.cp_file(path, buildspec_dir, must_exist=True, make_dirs=True)
 
     # patch the targets.json enum to contain all the known and discovered
     # targets, both in-tree and out-of-tree ones.
-    targets_enum_schema_file = f'{tmp_specs}/json_schema/enum/targets.json' 
+    targets_enum_schema_file = f'{tmp.schemas}/enum/targets.json' 
     with open(targets_enum_schema_file, 'r+') as f:
         j = json.load(f)
-        j['enum'] = [os.path.basename(x) for x in targets_from_tgroot(tmp_tgroot)]
+        j['enum'] = [os.path.basename(x) for x in targets_from_tgroot(tmp.tgroot)]
         f.truncate(0)
         f.seek(0)
         json.dump(j, f, indent=5)
@@ -106,7 +106,7 @@ def install_tmp_specs_overlay(pathmap, extra_target_paths,
     # patch the container_image_buildspec_files.json enum to contain all the
     # known and discovered files, both in-tree and out-of-tree ones.
     container_image_buildspec_files_enum_schema_file = \
-            f'{tmp_specs}/json_schema/enum/container_image_buildspec_files.json' 
+            f'{tmp.schemas}/enum/container_image_buildspec_files.json' 
     suffix = constants.BUILDSPEC_SUFFIX
     with open(container_image_buildspec_files_enum_schema_file, 'r+') as f:
         j = json.load(f)
@@ -444,20 +444,32 @@ schemas_dir        = paths.schemas
 steps_dir          = paths.steps_dir
 env_defaults_file  = paths.env_defaults
 tgroot             = paths.tgroot
-extra_targets = [os.path.abspath(x) for x in (args.target_tree or [])]
-extra_targets = normalize_extra_target_paths(extra_targets)
-extra_buildspec_files = [os.path.abspath(x) for x in (args.buildspec or [])]
-extra_buildspec_files = normalize_extra_buildspec_file_paths(extra_buildspec_files)
+extra_targets_orig = [os.path.abspath(x) for x in (args.target_tree or [])]
+extra_targets = normalize_extra_target_paths(extra_targets_orig)
+extra_buildspec_files_orig = [os.path.abspath(x) for x in (args.buildspec or [])]
+extra_buildspec_files = normalize_extra_buildspec_file_paths(extra_buildspec_files_orig)
 developer_config   = args.devconfig if args.devconfig else paths.get(paths.get_current_context(), 'devconfig', True)
 developer_config   = developer_config if os.path.isfile(developer_config) else None
 if developer_config and ((build_mode or interactive) and sdk_build_type != 'dev'):
     raise ValueError("Developer configs can only be used for dev containers")
 
+if verbose:
+    print("")
+    print(f"{len(extra_targets)} extra targets found after normalization")
+    if len(extra_targets_orig) > 0:
+        print(f"Input extra_target paths: {extra_targets_orig} --> normalized: {extra_targets}")
+        print(" ")
+    print(f"{len(extra_buildspec_files)} extra buildspecs found after normalization")
+    if len(extra_buildspec_files_orig) > 0:
+        print(f"Input extra_buildspec paths: {extra_buildspec_files_orig} --> normalized: {extra_buildspec_files}")
+        print("")
+#
+
 if args.list_targets:
     print_known_targets(paths.tgroot, extra_targets)
 elif args.validate_jsons:
     install_tmp_specs_overlay(paths, extra_targets, extra_buildspec_files)
-    validate_json_files(paths.tmpspecs, ignore_missing_specs=False)
+    validate_json_files(paths.get(context='tmp',label='specs'), ignore_missing_specs=False)
 elif args.command == 'treegen':
     if not args.tree_target:
         print("--target option missing")
@@ -481,23 +493,28 @@ else:
     utils.log(f" ** SDK type:   '{sdk_build_type}'")
     utils.log(f" ** SDK target: '{target}'")
 
-    tgspec_file = paths.tgspec
-    tgspec_file = paths.tgroot + f"{target}/{target}_spec.json"
+    tmp = paths.clone(context='tmp')
+    tgspec_file = tmp.tgspec
+    steps_file = tmp.dev_build_steps if args.devbuild else tmp.automated_build_steps
+    install_tmp_specs_overlay(paths, extra_targets, extra_buildspec_files)
 
-    utils.log(f" > Validating {tgspec_file} against schema ...")
-    tgspec = utils.validate_json_against_schema(tgspec_file, schemas_dir)
-
-    utils.log(f" > Validating {steps_file} against schema ...")
-    steps  = utils.validate_json_against_schema(steps_file, schemas_dir)
-    
+    # we validate and load this config first as it may list out-of-tree
+    # targets and in that case case _those_ must also be loaded before
+    # validating the target etc.
     if developer_config:
         utils.log(f" > Validating {developer_config} against schema ...")
-        utils.validate_json_against_schema(developer_config, schemas_dir)
+        utils.validate_json_against_schema(developer_config, tmp.schemas)
+
+    utils.log(f" > Validating {tgspec_file} against schema ...")
+    tgspec = utils.validate_json_against_schema(tgspec_file, tmp.schemas)
+
+    utils.log(f" > Validating {steps_file} against schema ...")
+    steps  = utils.validate_json_against_schema(steps_file, tmp.schemas)
     
     #
     confvars = {
             'sdk_build_type'    : sdk_build_type,
-            'num_build_cores'   : str(num_build_cores) if num_build_cores else None,
+            'num_build_cores'   : str(num_build_cores) if num_build_cores else str(constants.DEFAULT_NUM_BUILD_CORES),
             'start_clean'       : start_clean,
             'verbose'           : verbose,
             "build_artifacts_archive_name": tgspec["build_artifacts_archive_name"],
@@ -511,7 +528,7 @@ else:
             "builder_entrypoint": utils.get_last_path_component(__file__)
             }
 
-    sdk = sdk.get_sdk_for(target)(tgspec, paths, confvars)
+    sdk = sdk.get_sdk_by_name(tgspec['sdk_name'])(tgspec, paths, confvars)
     utils.log(f" ** steps: {steps['steps']}", cond=(build_mode and not restricted_build))
     utils.log(f" ** environment: {sdk.get_env_vars(inherit=False)}")
     utils.log(f" ** mounts: {sdk.get_mounts(validate=False)}")
