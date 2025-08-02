@@ -127,9 +127,6 @@ ENV PATH="$PATH:/home/$USER/.local/bin"
 ENV BASE_DIR "/home/$USER/base/"
 WORKDIR $BASE_DIR
 
-# We are already in a sandbox: the container. A venv is redundant.
-RUN pip3 install --break-system-packages -r depends/requirements.txt
-
 # Environment variables and docker build args
 ARG TARGET
 ARG SDK_DIRNAME
@@ -143,6 +140,9 @@ ENV SDK_TOPDIR "/home/$USER/$SDK_DIRNAME"
 ENV BUILD_ARTIFACTS_OUTDIR "$BUILD_ARTIFACTS_OUTDIR"
 
 RUN mkdir -p $BUILD_ARTIFACTS_OUTDIR
+
+# We are already in a sandbox: the container. A venv is redundant.
+RUN pip3 install --break-system-packages -r depends/requirements.txt
 
 RUN /bin/bash -c "src/builder.py -t $TARGET $DEV_BUILD_CLI_FLAG $NUM_BUILD_CORES_CLI_FLAG $SHORT_CIRCUIT_MAGIC_CLI_FLAG"
 
