@@ -9,12 +9,13 @@ install_file(){
     local src="$configs_dir/${1:?}"
     local dst="$sdk_topdir/${2:?}"
 
-    if [[ ! -d "$dst" ]]; then
-        echo "WARNING: skipping $0 hook script --> $dst does not exist."
+    if [[ ! -d "$sdk_topdir" ]]; then
+        echo "WARNING: skipping $0 hook script --> SDK_TOPDIR ($sdk_topdir) does not exist."
         return;
     fi
 
-    if [[ -f $src ]]; then
+    if [[ -f "$src" ]]; then
+        mkdir -p "$(dirname "$dst")"
         cp "$src" "$dst"
     else
         echo "WARNING: cannot install '$src' (not found)"

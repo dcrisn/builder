@@ -42,7 +42,7 @@ class Containers(ABC):
         pass
 
     @abstractmethod
-    def build_image(self, start_clean, container_config, tag=None, **kwargs):
+    def build_image(self, start_clean, image_build_topdir, image_recipe, tag=None, **kwargs):
         pass
 
 class Docker_containers(Containers):
@@ -120,14 +120,15 @@ class Docker_containers(Containers):
     def new_container(self, *args, **kwargs):
         return container.get(self.tech)(*args, **kwargs)
 
-    def build_image(self, start_clean, container_config, tag=None, **kwargs):
+    def build_image(self, start_clean, image_build_topdir, image_recipe, tag=None, **kwargs):
         uds_uri = 'unix://var/run/docker.sock'
         docker_client = docker.APIClient(base_url=uds_uri)
         nocache = bool(start_clean)
         stream = docker_client.build(
             decode=True, # decode the stream to dictionaries on the fly
             tag = tag,
-            path = container_config,
+            path = image_build_topdir,
+            dockerfile = image_recipe,
             buildargs = kwargs,
             nocache=nocache,
             network_mode='host',

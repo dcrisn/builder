@@ -1,5 +1,2 @@
 *
-
-!*.py
-!spec/
-!staging/
+!staging/**

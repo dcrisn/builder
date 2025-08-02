@@ -1,0 +1,18 @@
+{
+    "schema" : "target_spec.schema.json",
+    "target": "rpi4b_yocto",
+    "sdk_name" : "yocto",
+    "sdk_url" : "http://git.yoctoproject.org/git/poky",
+    "sdk_tag" : "scarthgap-5.0.10",
+    "external_toolchain": false,
+    "build_artifacts_archive_name": "artifacts",
+    "container_image_buildspec_file": "Dockerfile.ubuntu24.buildspec",
+    "environment" : {
+        "variables": {
+            "NUM_BUILD_CORES" : "8",
+            "YOCTO_IMAGE_NAME": "tarp-image-dev",
+            "BUILD_CONFIG_FILE_NAME" : "rpi4b_dev.conf",
+            "LAYER_BRANCH": "scarthgap"
+        }
+    }
+}

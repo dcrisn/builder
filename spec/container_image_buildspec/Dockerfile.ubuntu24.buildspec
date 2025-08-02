@@ -114,18 +114,18 @@ RUN echo "$(id -un $UID) ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/10-$USER
 
 USER $UID:$GID
 
+ARG SYSTEM_CONFIGS
+ARG SDK_CONFIGS
+
 # Copy ssh keys for ssh access to any internal servers
 RUN mkdir -p /home/$USER/.ssh
-ADD  --chown=$UID:$UID staging/files/system_config/ssh /home/$USER/.ssh/
-COPY --chown=$UID:$UID staging/files/system_config/gitconfig /home/$USER/.gitconfig
+ADD  --chown=$UID:$UID ${SYSTEM_CONFIGS}/ssh /home/$USER/.ssh/
+COPY --chown=$UID:$UID ${SYSTEM_CONFIGS}/gitconfig /home/$USER/.gitconfig
 ADD  --chown=$UID:$UID staging /home/$USER/base
 
 ENV PATH="$PATH:/home/$USER/.local/bin"
 ENV BASE_DIR "/home/$USER/base/"
 WORKDIR $BASE_DIR
-
-# We are already in a sandbox: the container. A venv is redundant.
-RUN pip3 install --break-system-packages -r depends/requirements.txt
 
 # Environment variables and docker build args
 ARG TARGET
@@ -141,6 +141,9 @@ ENV BUILD_ARTIFACTS_OUTDIR "$BUILD_ARTIFACTS_OUTDIR"
 
 RUN mkdir -p $BUILD_ARTIFACTS_OUTDIR
 
-RUN /bin/bash -c "./builder.py -t $TARGET $DEV_BUILD_CLI_FLAG $NUM_BUILD_CORES_CLI_FLAG $SHORT_CIRCUIT_MAGIC_CLI_FLAG"
+# We are already in a sandbox: the container. A venv is redundant.
+RUN pip3 install --break-system-packages -r depends/requirements.txt
+
+RUN /bin/bash -c "src/builder.py -t $TARGET $DEV_BUILD_CLI_FLAG $NUM_BUILD_CORES_CLI_FLAG $SHORT_CIRCUIT_MAGIC_CLI_FLAG"
 
 WORKDIR $SDK_TOPDIR

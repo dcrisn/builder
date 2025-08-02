@@ -1,13 +1,17 @@
 {
     "schema" : "target_spec.schema.json",
-    "target": "x86_glibc",
+    "target": "rpi4b-openwrt22",
     "sdk_name" : "OpenWrt",
-    "sdk_url" : "https://git.openwrt.org/openwrt/openwrt.git",
+    "sdk_url" : [
+        "https://git.openwrt.org/openwrt/openwrt.git"
+    ],
     "sdk_tag" : "openwrt-22.03",
     "external_toolchain": false,
     "build_artifacts_archive_name": "artifacts",
+    "container_image_buildspec_file": "Dockerfile.ubuntu22.buildspec",
     "environment" : {
         "variables": {
+            "__DUMMYVAR__" : "dummy"
         }
     }
 }

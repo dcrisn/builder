@@ -69,7 +69,14 @@ def ensure_dir_semantics(path):
     return path + ('/' if path[-1] != '/' else '')
 
 def get_project_root():
-    return os.path.dirname(os.path.realpath(__file__)) + '/'
+    cwd = os.path.dirname(os.path.realpath(__file__)) + '/'
+    root = os.path.abspath(f"{cwd}/..")
+    # project root must have the .git directory
+    return root
+
+def is_git_repo(dirpath):
+    git_dir = f'{dirpath}/.git'
+    return os.path.exists(git_dir) and os.path.isdir(git_dir)
 
 def cp_dir(src_dir, dst_dir, empty_first=False, just_contents=False):
     """
@@ -248,5 +255,29 @@ def validate_mounts(mounts):
         if not os.path.isdir(srcpath):
             raise NotADirectoryError(f"Cannot mount {srcpath} from the host: not a directory")
     return mounts
+
+def print_dirtree(startpath):
+    def walk_dir(current_path, prefix=""):
+        entries = sorted(os.listdir(current_path))
+        entries = [e for e in entries if not e.startswith('.')]  # optional: skip hidden
+        entries_count = len(entries)
+
+        for idx, entry in enumerate(entries):
+            path = os.path.join(current_path, entry)
+            connector = "└── " if idx == entries_count - 1 else "├── "
+            print(prefix + connector + entry)
+
+            if os.path.isdir(path):
+                extension = "    " if idx == entries_count - 1 else "│   "
+                walk_dir(path, prefix + extension)
+
+    print(startpath)
+    walk_dir(startpath)
+
+def make_file(path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path): return
+    with open(path, 'w') as f:
+        pass
 
 

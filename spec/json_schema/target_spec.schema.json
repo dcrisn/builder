@@ -16,7 +16,11 @@
         },
         "sdk_url": {
             "description" : "Url to download sdk from",
-            "type": "string"
+            "type": "array",
+              "items": {
+                  "type": "string"
+              },
+              "minItems": 1
         },
         "sdk_tag": {
             "description" : "The branch or exact tag to check out once the SDK has been cloned",
@@ -42,6 +46,11 @@
             "type": "string",
             "description": "a description of the instance itself"
         },
+        "container_image_buildspec_file": {
+            "type": "string",
+            "description": "Spec file for building container image (e.g. Dockerfile to build Docker image)",
+            "$ref" : "./enum/container_image_buildspec_files.json"
+        },
         "schema": {
             "type": "string",
             "description": "relative path to the schema to use (this schema)"
@@ -56,7 +65,8 @@
         "sdk_tag", 
         "external_toolchain", 
         "build_artifacts_archive_name",
-        "environment"
+        "environment",
+        "container_image_buildspec_file"
     ],
     "dependent_required": {
         "external_toolchain": ["external_toolchain_URL"]

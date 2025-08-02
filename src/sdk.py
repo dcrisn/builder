@@ -112,19 +112,37 @@ class Concrete_sdk(Sdk):
 
     def checkout(self):
         pabs = self.path.absolute()
-        cmd  = f"git clone {self.url} --branch {self.tag} {pabs}"
+        
+        if len(self.url) <= 0:
+            raise ValueError(f"cannot clone sdk: no URL provided.")
 
-        if self.path.exists():
-            if self.conf["start_clean"]:
+        # wipe sdk repo dir if start_clean=True
+        if self.conf["start_clean"]:
+            shutil.rmtree(pabs)
+
+        # if repo already cloned, then simply check out tag
+        if pabs.exists() and utils.is_git_repo(str(pabs)):
+            cmd = f"git -C {pabs} checkout {self.tag}"
+            utils.log(f"Running {cmd} ...")
+            utils.run(cmd)
+            return
+       
+        for url in self.url:
+            cmd  = f"git clone {url} --branch {self.tag} --depth 1 {pabs}"
+
+            if not self.path.exists():
+                self.path.mkdir(parents=True, exist_ok=True)
+     
+            try:
+                utils.log(f"Running {cmd} ...")
+                utils.run(cmd)
+            except Exception as e:
+                utils.log(f"Failed to clone sdk repo. Command={cmd}, error={e}") 
                 shutil.rmtree(pabs)
             else:
-                cmd = f"git -C {pabs} checkout {self.tag}"
-
-        if not self.path.exists():
-            self.path.mkdir(parents=True, exist_ok=True)
-
-        utils.log(f"Running {cmd} ...")
-        utils.run(cmd)
+                # done as soon as one URL works
+                return
+        raise RuntimeError(f"Failed to clone sdk repo. All urls failed. Urls: {self.url}")
     
     def get_env_vars(self, inherit=True):
         inherited   = dict(**os.environ if inherit else {})
@@ -138,9 +156,8 @@ class Concrete_sdk(Sdk):
         configured["VERBOSE"] = "Y" 
         configured["BUILD_ARTIFACTS_OUTDIR"] = paths.outdir
         configured["PACKAGE_OUTDIR"] = self.paths.get(context='container', label='pkg_outdir')
-        if self.conf["num_build_cores"]:
-            configured["NUM_BUILD_CORES"] = self.conf["num_build_cores"]
-        configured["PYTHONPATH"] = (os.getenv("PYTHONPATH") or '') + ":" + paths.basedir
+        configured["NUM_BUILD_CORES"] = self.conf["num_build_cores"]
+        configured["PYTHONPATH"] = (os.getenv("PYTHONPATH") or '') + f':{paths.basedir}:{paths.src}'
         configured["CONFIGS_DIR"] = paths.files
         configured["SDK_TOPDIR"] = paths.sdk_path + self.dir_name
 
@@ -208,7 +225,7 @@ class Concrete_sdk(Sdk):
         container = self.containers.new_container(self.container_img_tag, environ)
         container.set_mounts(self.get_mounts())
 
-        cmd = self.paths.get('container', 'basedir') + self.conf['builder_entrypoint'] + f" -t {self.target} --cores={environ['NUM_BUILD_CORES']}"
+        cmd = self.paths.get('container', 'src') + self.conf['builder_entrypoint'] + f" -t {self.target} --cores={environ['NUM_BUILD_CORES']}"
         utils.log(f"Starting container with cmd '{cmd}'")
         container.run(cmd)
 
@@ -283,6 +300,10 @@ class Concrete_sdk(Sdk):
 
     def build_container_image(self, short_circuit=False):
         nocache = True if self.conf["start_clean"] else False
+        sdk_configs = self.paths.get(context='staging', label='sdk_configs')
+        system_configs = self.paths.get(context='staging', label='system_configs')
+        sdk_configs = sdk_configs.replace(self.paths.basedir, './')
+        system_configs = system_configs.replace(self.paths.basedir, './')
         build_args = {
                 "UID"     : str(os.getuid()),
                 "GID"     : str(os.getgid()),
@@ -294,14 +315,22 @@ class Concrete_sdk(Sdk):
                 "NUM_BUILD_CORES_CLI_FLAG" : "--cores=" + self.num_build_cores(),
                 "BUILD_ARTIFACTS_OUTDIR" : self.paths.get(context='container', label='outdir'),
                 "DEV_BUILD_CLI_FLAG" : (self.conf["sdk_build_type"] == "dev") and "-d" or "",
-                "SHORT_CIRCUIT_MAGIC_CLI_FLAG": ("--skip-all" if short_circuit else "")
+                "SHORT_CIRCUIT_MAGIC_CLI_FLAG": ("--skip-all" if short_circuit else ""),
+                "SYSTEM_CONFIGS": system_configs,
+                "SDK_CONFIGS": sdk_configs,
                 }
         print(build_args)
+
+        # we use the recipe from the staging dir
+        specs_dir = self.paths.get(context='staging', label='specs')
+        var = self.conf["container_image_recipe"]
+        container_image_recipe = f'{specs_dir}/container_image_buildspec/{var}'
 
         print(f"----- building docker image with tag: {self.container_img_tag}")
         stream = self.containers.build_image(
                 nocache,
                 self.paths.basedir,
+                container_image_recipe,
                 tag = self.container_img_tag,
                 **build_args
                 )
@@ -311,17 +340,47 @@ class Concrete_sdk(Sdk):
     
 
     def populate_staging_dir(self):
+        """
+        The staging directory will contain the final file tree to be
+        used for validation and then sdk build. This file tree is obtained
+        after combining a number of files. The order of application is
+        importatnt: later files replace (override) earlier files if they
+        have the same name and path.
+        
+        The process is the following:
+        - targets and dockerfiles ('container image buildspec files') can be
+          either in-tree or out-of-tree. Therefore prior to validation,
+          or listing all targets etc, all the in-tree files are copied
+          under .tmp, and all out-of-tree files are copied on top of them
+          to the same place.
+        The staging dir is then populated.
+        - some basic common files (sdk- and target- agnostic) are copied to the
+          staging dir from the in-tree paths
+        - sdk-specific files are copied on top from the in-tree paths
+        - schemas, dockerfiles, and target-specific files are copied on top from
+          the in-tree paths if the target is in-tree, else they get copied
+          from .tmp, as explained earlier.
+
+        The staging dir contents will then end up at the root of the 'basedir'
+        inside the container. Note that under the container basedir there will
+        be some duplication. The usual basedir/specs path must be there and
+        correctly populated, and this is used for schema validation etc.
+        But otherwise the files/ scripts/ etc directories also appear directly
+        under basedir. These directories are the result of merging together
+        various file trees as explained earlier. Some of these directories
+        are exposed via environment variables to scripts that run as part
+        of stages or hooks e.g. 'CONFIGS_DIR' is basedir/files. etc.
+        """
         current  = self.paths
         staging  = current.clone(context='staging')
+        tmp = current.clone(context='tmp')
 
         shutil.rmtree(staging.basedir, ignore_errors=True)
         os.mkdir(staging.basedir)
 
-        # bare sdk files to continue inside container
+        # basic sdk files to continue inside container
         utils.cp_dir(current.depends, staging.depends, just_contents=True)
-        utils.cp_dir(current.schemas, staging.schemas, just_contents=True)
         utils.cp_dir(current.steps_dir, staging.steps_dir, just_contents=True)
-        utils.cp_file(current.tgspec, staging.target, must_exist=True)
         utils.cp_file(current.env_defaults, staging.common + 'specs/', must_exist=True)
         utils.cp_file(current.common_hooks + "run_hooks.py", staging.hooks, must_exist=True)
 
@@ -349,11 +408,27 @@ class Concrete_sdk(Sdk):
         utils.cp_dir(current.common_hooks + f"prepare_sdk/{self.name}", staging.scripts + "hooks/prepare_sdk", just_contents=True)
 
         # overrides or target-specific files
-        utils.cp_dir(current.target_files, staging.basedir)
-        utils.cp_dir(current.target_scripts, staging.basedir)
+        if os.path.exists(current.tgspec):
+            utils.cp_dir(current.target_files, staging.basedir)
+            utils.cp_dir(current.target_scripts, staging.basedir)
+        else:
+            assert(os.path.exists(tmp.tgspec))
+            # out-of-tree files, IFF the target is defined out-of-tree.
+            # -- the targets.enum schema
+            # -- the buildspecs.enum schema
+            # -- the target configuration
+            
+            # copy these files so the final merged file tree for the target
+            # is complete inside the container (files, scripts etc)
+            utils.cp_dir(tmp.target_files, staging.basedir)
+            utils.cp_dir(tmp.target_scripts, staging.basedir)
 
-        for pyfile in glob.glob("*.py"):
-            shutil.copy2(pyfile, staging.basedir)
+        # copy these files (potentially-patched schema files) so the
+        # schema-validation logic works in the container
+        utils.cp_dir(tmp.specs, staging.specs, empty_first=False, just_contents=True)
+
+        # cp all source scripts
+        utils.cp_dir(f'{current.src}/', f'{staging.src}/', empty_first=False, just_contents=True)
 
     def system_prepare(self):
         pass
@@ -433,22 +508,10 @@ class yocto_sdk(Concrete_sdk):
     def __init__(self, spec, paths, configs):
         super().__init__(spec, paths, configs)
    
-class rpi4b_sdk(OpenWrt_sdk):
-    def __init__(self, spec, paths, configs):
-        super().__init__(spec, paths, configs)
-
-class rpi4b_yocto_sdk(yocto_sdk):
-    def __init__(self, spec, paths, configs):
-        super().__init__(spec, paths, configs)
-
-class x86_glibc_sdk(OpenWrt_sdk):
-    def __init__(self, spec, paths, configs):
-        super().__init__(spec, paths, configs)
-
-def get_sdk_for(target):
+def get_sdk_by_name(sdkname):
     modname   = __name__
-    classname = f"{target}_sdk"
+    classname = f"{sdkname}_sdk"
     sdk = utils.get_attr_if_exists(modname, classname)
     if not sdk:
-        raise NotImplementedError(f"No Sdk class implemented for '{target}'")
+        raise NotImplementedError(f"No Sdk class implemented with name '{sdkname}'")
     return sdk

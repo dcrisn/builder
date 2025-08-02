@@ -1,7 +1,16 @@
 {
-    "schema" : "developer.schema.json",
     "description": "basic dev configuration file",
-    "builder_dir": "/home/vcsaturninus/common/repos/builder",
+    "schema" : "developer.schema.json",
+    "extra_targets": [
+        "/home/vcsaturninus/common/repos/extra_targets",
+        "/home/vcsaturninus/common/repos/other_extra_targets",
+        "/home/vcsaturninus/common/repos/rpi4b_openwrt24_target"
+    ],
+    "extra_container_buildspecs": [
+        "/home/vcsaturninus/common/repos/dockerfiles",
+        "/home/vcsaturninus/common/repos/other_dockerfiles",
+        "/home/vcsaturninus/common/repos/rpi4b_openwrt24_target.dockerfile"
+    ],
     "environment" : {
         "variables": {
             "BUILD_BRANCHES" : "fix-copilation-bug alpha1.0"

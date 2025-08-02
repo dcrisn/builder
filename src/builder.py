@@ -1,32 +1,170 @@
 #!/usr/bin/python3
 
 """
-Copyright (c) 2022, vcsaturninus -- vcsaturninus@protonmail.com
+Copyright (c) 2025, dcrisn -- d.crisn@outlook.com
 """
 
 import argparse
 import os
 import sys
 import shutil
+from pathlib import Path
+import json
 
 import utils
 import containers
 import sdk
 import settings
+import constants
 
 def clean_up_paths(paths):
     for path in paths:
         shutil.rmtree(path, ignore_errors=True)
         os.makedirs(path)
 
-def load_known_targets(tgroot):
+def normalize_extra_target_paths(extra_target_paths):
+    """The --target-tree option points either to a directory that
+    directly contains a target spec.json (i.e. a target directory),
+    or to a directory that in turn contains one of more such directories.
+    This function normalizes such a list of directories and returns
+    a list of target directories only (ie a list of directories where
+    each directory contains a spec.json file)"""
+    paths = []
+    for path in extra_target_paths:
+        if not os.path.isdir(path):
+            continue
+
+        # if target dir
+        basename = os.path.basename(path)
+        specfile = f'{path}/{basename}_spec.json'
+        if os.path.exists(specfile) and os.path.isfile(specfile):
+            paths.append(path)
+            continue
+
+        # else see if directory of target dirs
+        dirs = [x for x in os.listdir(path) if os.path.isdir(f'{path}/{x}')]
+        for x in dirs:
+            d = f'{path}/{x}'
+            specfile = f'{d}/{x}_spec.json'
+            if os.path.exists(specfile) and os.path.isfile(specfile):
+                paths.append(d)
+    return paths
+
+def normalize_extra_buildspec_file_paths(extra_buildspec_file_paths):
+    """The --container-spec option points either to a file,
+    or to a directory of files. Each file ending in .buildspec is
+    considered a buildspec file.
+    This function normalizes such a list of file/directory paths and returns
+    a list of file paths only (not directories), with each path
+    being the absolute path to the build-spec file.
+    """
+    paths = []
+    suffix = constants.BUILDSPEC_SUFFIX
+    for path in extra_buildspec_file_paths:
+        # file path
+        if os.path.isfile(path):
+            if path.endswith(suffix):
+                paths.append(path)
+            continue
+
+        # directory path
+        elif os.path.isdir(path):
+            for x in os.listdir(path):
+                x = f"{path}/{x}"
+                if os.path.isfile(x):
+                    if x.endswith(suffix):
+                        paths.append(x)
+    return paths
+
+def extra_targets_from_devconfig(developer_config):
+    """Return a list of normalized paths (see normalize_extra_target_paths())
+    of out-of-tree targets taken from the developer_config, if any.
+    """
+    if not developer_config:
+        return [],[]
+
+    j = utils.load_json_from_file(developer_config)
+    paths = j.get('extra_targets')
+    if not paths:
+        return [],[]
+    normalized = normalize_extra_target_paths(paths)
+    return paths,normalized
+
+def extra_buildspecs_from_devconfig(developer_config):
+    """Return a list of normalized paths (see
+    normalize_extra_buildspec_file_paths())
+    of out-of-tree buildspecs taken from the developer_config, if any.
+    """
+    if not developer_config:
+        return [],[]
+
+    j = utils.load_json_from_file(developer_config)
+    paths = j.get('extra_container_buildspecs')
+    if not paths:
+        return [],[]
+    normalized = normalize_extra_buildspec_file_paths(paths)
+    return paths,normalized
+
+def install_tmp_specs_overlay(pathmap, extra_target_paths,
+                              extra_container_image_buildspec_file_paths):
+    """Cp the specs directory to a temporary directory, and then copy each
+    path in extra_target_paths (which must have been normalized via
+    normalize_extra_target_paths()), recursively, into the tgroot under specs."""
+    host = pathmap.clone(context='host')
+    tmp = pathmap.clone(context='tmp')
+    utils.cp_dir(host.specs, tmp.specs, empty_first=True, just_contents=True)
+    for path in extra_target_paths:
+        basename = os.path.basename(path)
+        dstdir = f'{tmp.tgroot}/{basename}'
+        utils.cp_dir(path, dstdir,  empty_first=True, just_contents=True)
+
+    buildspec_dir = f'{tmp.buildspecs}'
+    for path in extra_container_image_buildspec_file_paths:
+        utils.cp_file(path, buildspec_dir, must_exist=True, make_dirs=True)
+
+    # patch the targets.json enum to contain all the known and discovered
+    # targets, both in-tree and out-of-tree ones.
+    targets_enum_schema_file = f'{tmp.schemas}/enum/targets.json' 
+    with open(targets_enum_schema_file, 'r+') as f:
+        j = json.load(f)
+        j['enum'] = [os.path.basename(x) for x in targets_from_tgroot(tmp.tgroot)]
+        f.truncate(0)
+        f.seek(0)
+        json.dump(j, f, indent=5)
+
+    # patch the container_image_buildspec_files.json enum to contain all the
+    # known and discovered files, both in-tree and out-of-tree ones.
+    container_image_buildspec_files_enum_schema_file = \
+            f'{tmp.schemas}/enum/container_image_buildspec_files.json' 
+    suffix = constants.BUILDSPEC_SUFFIX
+    with open(container_image_buildspec_files_enum_schema_file, 'r+') as f:
+        j = json.load(f)
+        files = [x for x in os.listdir(buildspec_dir) if x.endswith(suffix)]
+        j['enum'] = files
+        f.truncate(0)
+        f.seek(0)
+        json.dump(j, f, indent=5)
+
+def targets_from_tgroot(tgroot):
+    return [f'{tgroot}/{x}' for x in os.listdir(tgroot) if os.path.exists(f'{tgroot}/{x}/{x}_spec.json')]
+
+def load_known_targets(tgroot, extra_targets):
     """
     List targets that are currently supported i.e. can be built.
+    tgroot is the in-tree target root. extra_targets is a list
+    of directories for out-of-tree targets.
+    This function assumes the paths have already been validated as
+    being valid target paths.
     """
-    return {x : True for x in os.listdir(tgroot) if os.path.isdir(tgroot + "/" + x) and x != "common"}
+    targets = dict()
+    target_paths = targets_from_tgroot(tgroot) + extra_targets
+    for target_path in target_paths:
+        tgname = os.path.basename(target_path)
+        targets[tgname] = True
+    return targets
 
-def print_known_targets(tgroot):
-    targets = load_known_targets(tgroot).keys()
+def print_known_targets(tgroot, extra_targets):
+    targets = load_known_targets(tgroot, extra_targets).keys()
     if not len(targets):
         print("No support for any targets")
     else:
@@ -34,11 +172,17 @@ def print_known_targets(tgroot):
         for tg in targets:
             print(f"\t ** {tg}")
 
-def is_known_target(target):
-    return bool(load_known_targets(tgroot).get(target))
+def is_known_target(target, extra_targets):
+    return bool(load_known_targets(tgroot, extra_targets).get(target))
 
-def validate_json_files(ignore_missing_specs):
-    paths = { "steps" : steps_dir, "common" : tgroot + "common/specs/" }
+def validate_json_files(specs_path : str, ignore_missing_specs):
+    schemas_dir = f"{specs_path}/json_schema/"
+    tgroot = f"{specs_path}/targets/"
+    paths = {
+            "steps" : f"{specs_path}/steps/",
+            "common" : f"{tgroot}/common/specs/",
+            }
+
     for key,path in paths.items():
         print(f"Validating {key} specs ...")
         for file in os.listdir(path):
@@ -48,6 +192,7 @@ def validate_json_files(ignore_missing_specs):
 
     print("Validating target specs ...")
     for directory in os.listdir(tgroot):
+        if not os.path.isdir(f'{tgroot}/{directory}'): continue
         if directory != "common":
             tgspec = f"{directory}_spec.json"
             subject = tgroot + directory + "/" + tgspec
@@ -104,6 +249,44 @@ def load_mount_defaults():
     """ Currently unused """
     return []
 
+def generate_target_tree(target, path, pathmap):
+    """Generate the required directory tree for an external target.
+    The directory will be created under path/target/.
+    The directory tree will be prepopulated with some standard files.
+    """
+    if not os.path.exists(path):
+        raise ValueError("No such directory: " + path)
+    if not os.path.isdir(path):
+        raise ValueError(f"Path '{path}' is not a directory")
+
+    root = os.path.abspath(pathmap.tgroot + "/common")
+    common_files = root + "/files"
+    dst = f"{path}/{target}"
+    md = lambda x: os.makedirs(f'{dst}/{x}', exist_ok=True)
+    mf = lambda x: utils.make_file(f'{dst}/{x}')
+    
+    utils.cp_file(f'{pathmap.tgroot}/target_spec_template.json', f'{dst}/',
+                  dst_fname=f'{target}_spec.json')
+    # create required file directories, and copy default files
+    filedirs = ['sdk_config', 'system_config']
+    for filedir in filedirs:
+        common_path = f"{common_files}/{filedir}/common/"
+        md(f'files/{filedir}')
+        for dirpath, dirs, files in os.walk(common_path):
+            dirs = [x for x in dirs if not x.startswith('.')]
+            files = [x for x in files if not x.startswith('.')]
+            d = f"{dst}/" + dirpath.replace(root,'').replace('/common', '')
+            for f in files:
+                utils.cp_file(f'{dirpath}/{f}', d)
+    stages = [x for x in os.listdir(f'{root}/scripts/') if x != 'hooks']
+    hooks = [x for x in os.listdir(f'{root}/scripts/hooks') if not x.endswith('.py')]
+    for stage in stages:
+        md(f'scripts/{stage}')
+    for hook in hooks:
+        md(f'scripts/hooks/{hook}')
+
+    utils.print_dirtree(dst)
+
 def sanitize_cli(argv):
     unsane = False
     if argv.verbose and argv.quiet:
@@ -128,6 +311,20 @@ parser.add_argument('-t',
                      dest='target',
                      help='Target platform to build for'
                      )
+
+parser.add_argument('--target-tree',
+                     metavar='TREE',
+                     action='append',
+                     dest='target_tree',
+                     help='File tree containing configuration for the specified target'
+                     )
+
+parser.add_argument('--container-spec',
+                    metavar='SPEC',
+                    action='append',
+                    dest='buildspec',
+                    help="Spec file (or its containing directory) used to build container image (e.g. Dockerfile used to build Docker image) required for build environment"
+                    )
 
 parser.add_argument('-q',
                     '--quiet',
@@ -209,6 +406,26 @@ parser.add_argument("--stage",
                     help='Populate the staging directory and do nothing else.'
                     )
 
+subparsers = parser.add_subparsers(title='subcommands', dest='command')
+
+treegen_cmd = subparsers.add_parser(name ='treegen',
+                                    description='generate external-configuration tree',
+                                    help='generate external-configuration tree'
+                                    )
+
+treegen_cmd.add_argument('--target',
+                     action='store',
+                     metavar='NAME',
+                     dest='tree_target',
+                     help='Generate a target tree for the target with the given name'
+                     )
+
+treegen_cmd.add_argument('path',
+                     metavar='PATH',
+                     #dest='tree_path',
+                     help='The directory path under which to generate the tree. The tree will be generated nested under PATH/<target/sdk>/'
+                     )
+
 # this is a hidden option that will not be shown for --help.
 # If this option is specified, the script ignores everything
 # else and simply exits with success immediately. 
@@ -256,22 +473,53 @@ schemas_dir        = paths.schemas
 steps_dir          = paths.steps_dir
 env_defaults_file  = paths.env_defaults
 tgroot             = paths.tgroot
+extra_targets_orig = [os.path.abspath(x) for x in (args.target_tree or [])]
+extra_buildspec_files_orig = [os.path.abspath(x) for x in (args.buildspec or [])]
+
 developer_config   = args.devconfig if args.devconfig else paths.get(paths.get_current_context(), 'devconfig', True)
 developer_config   = developer_config if os.path.isfile(developer_config) else None
 if developer_config and ((build_mode or interactive) and sdk_build_type != 'dev'):
     raise ValueError("Developer configs can only be used for dev containers")
 
+extra_targets = normalize_extra_target_paths(extra_targets_orig)
+extra_buildspec_files = normalize_extra_buildspec_file_paths(extra_buildspec_files_orig)
+
+a, b = extra_targets_from_devconfig(developer_config)
+c, d = extra_buildspecs_from_devconfig(developer_config)
+extra_targets_orig += a
+extra_targets += b
+extra_buildspec_files_orig += c
+extra_buildspec_files += d
+
+if verbose and not containers.inside_container():
+    print("")
+    print(f"{len(extra_targets)} extra targets found after normalization")
+    if len(extra_targets_orig) > 0:
+        print(f"Input extra_target paths: {extra_targets_orig} --> normalized: {extra_targets}")
+        print(" ")
+    print(f"{len(extra_buildspec_files)} extra buildspecs found after normalization")
+    if len(extra_buildspec_files_orig) > 0:
+        print(f"Input extra_buildspec paths: {extra_buildspec_files_orig} --> normalized: {extra_buildspec_files}")
+        print("")
+#
+
 if args.list_targets:
-    print_known_targets(paths.tgroot)
+    print_known_targets(paths.tgroot, extra_targets)
 elif args.validate_jsons:
-    validate_json_files(ignore_missing_specs=False)
+    install_tmp_specs_overlay(paths, extra_targets, extra_buildspec_files)
+    validate_json_files(paths.get(context='tmp',label='specs'), ignore_missing_specs=False)
+elif args.command == 'treegen':
+    if not args.tree_target:
+        print("--target option missing")
+        sys.exit(1)
+    generate_target_tree(args.tree_target, args.path, paths)
 else:
     target = args.target.lower() if args.target else None
     if not target:
         print("Mandatory argument not specified: '-t|--target'")
         sys.exit(13)
-    elif not is_known_target(target):
-        print_known_targets(paths.tgroot)
+    elif not is_known_target(target, extra_targets):
+        print_known_targets(paths.tgroot, extra_targets)
         raise LookupError(f"Target specified ('{target}') not supported")
     
     paths_to_clean = [paths.tmpdir]
@@ -283,25 +531,32 @@ else:
     utils.log(f" ** SDK type:   '{sdk_build_type}'")
     utils.log(f" ** SDK target: '{target}'")
 
-    tgspec_file = paths.tgspec
-    tgspec_file = paths.tgroot + f"{target}/{target}_spec.json"
+    tmp = paths.clone(context='tmp')
+    tgspec_file = tmp.tgspec
+    steps_file = tmp.dev_build_steps if args.devbuild else tmp.automated_build_steps
+    install_tmp_specs_overlay(paths, extra_targets, extra_buildspec_files)
 
-    utils.log(f" > Validating {tgspec_file} against schema ...")
-    tgspec = utils.validate_json_against_schema(tgspec_file, schemas_dir)
-
-    utils.log(f" > Validating {steps_file} against schema ...")
-    steps  = utils.validate_json_against_schema(steps_file, schemas_dir)
-    
+    # we validate and load this config first as it may list out-of-tree
+    # targets and in that case case _those_ must also be loaded before
+    # validating the target etc.
     if developer_config:
         utils.log(f" > Validating {developer_config} against schema ...")
-        utils.validate_json_against_schema(developer_config, schemas_dir)
+        utils.validate_json_against_schema(developer_config, tmp.schemas)
 
+    utils.log(f" > Validating {tgspec_file} against schema ...")
+    tgspec = utils.validate_json_against_schema(tgspec_file, tmp.schemas)
+
+    utils.log(f" > Validating {steps_file} against schema ...")
+    steps  = utils.validate_json_against_schema(steps_file, tmp.schemas)
+    
+    #
     confvars = {
             'sdk_build_type'    : sdk_build_type,
-            'num_build_cores'   : str(num_build_cores) if num_build_cores else None,
+            'num_build_cores'   : str(num_build_cores) if num_build_cores else str(constants.DEFAULT_NUM_BUILD_CORES),
             'start_clean'       : start_clean,
             'verbose'           : verbose,
             "build_artifacts_archive_name": tgspec["build_artifacts_archive_name"],
+            "container_image_recipe": tgspec['container_image_buildspec_file'],
             "build_user"        : settings.build_user,
             "container_tech"    : settings.container_technology,
             "env_defaults"      : load_env_defaults(),
@@ -311,7 +566,7 @@ else:
             "builder_entrypoint": utils.get_last_path_component(__file__)
             }
 
-    sdk = sdk.get_sdk_for(target)(tgspec, paths, confvars)
+    sdk = sdk.get_sdk_by_name(tgspec['sdk_name'])(tgspec, paths, confvars)
     utils.log(f" ** steps: {steps['steps']}", cond=(build_mode and not restricted_build))
     utils.log(f" ** environment: {sdk.get_env_vars(inherit=False)}")
     utils.log(f" ** mounts: {sdk.get_mounts(validate=False)}")

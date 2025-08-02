@@ -1,0 +1,11 @@
+{   
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "container image buildspec file name enum",
+    "description": "Enumeration of buildspec file names used for building container images",
+    "type": "string",
+    "enum": [
+        "Dockerfile.ubuntu22.buildspec",
+        "Dockerfile.ubuntu24.buildspec"
+    ]
+}
+
