@@ -339,9 +339,11 @@ class Concrete_sdk(Sdk):
         # NOTE: we can bind-mount directories from the host when running a
         # container, but NOT when building an image. In other words, paths
         # can only be bind-mounted into containers, not images. This means
-        # if any hooks are invoked during the image-build stage, they have
-        # to handle this case i.e. they will not have an SDK_TOPDIR
-        # to operate on.
+        # if any hooks are invoked during the image-build stage of the
+        # dev-build -type configuration, they would to handle this case i.e.
+        # they will not have an SDK_TOPDIR to operate on.
+        # To avoid this sort of confusion, dev-build -type builds always
+        # specify SHORT_CIRCUIT_MAGIC_CLI_FLAG=true.
         stream = self.containers.build_image(
                 nocache,
                 self.paths.basedir,
